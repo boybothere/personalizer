@@ -1,0 +1,447 @@
+{
+  "id": "rpt_7e07a4c8e2eb",
+  "created_at": "2026-10-17T13:30:32.807937Z",
+  "mode": "heuristic",
+  "request": {
+    "name": "Daniel Okafor",
+    "organization": "Helio Grid",
+    "organization_domain": "heliogrid.example",
+    "role": null,
+    "location": null,
+    "profile_url": null,
+    "meeting_purpose": "Explore a grid-scale battery analytics partnership",
+    "requester_context": null,
+    "excluded_categories": [],
+    "allow_personal_interests": true,
+    "max_sources": 12
+  },
+  "identity": {
+    "resolved": true,
+    "confidence": "high",
+    "notes": [
+      "Sources about a different or unverified person were excluded (name linked to 'Lagos United')."
+    ]
+  },
+  "professional_context": [
+    {
+      "text": "After a leadership reshuffle, Helio Grid named Daniel Okafor as VP of Engineering at Helio Grid.",
+      "finding_ids": [
+        "f_8ec6a0488b0f"
+      ]
+    },
+    {
+      "text": "Daniel Okafor focuses on battery storage forecasting and grid analytics.",
+      "finding_ids": [
+        "f_686e3561f9f9"
+      ]
+    },
+    {
+      "text": "Okafor said the company will prioritise battery analytics partnerships in 2027.",
+      "finding_ids": [
+        "f_a3430c3ebb37"
+      ]
+    },
+    {
+      "text": "Daniel Okafor of Helio Grid spoke on a panel about grid-scale battery analytics at Energy Storage Forum 2026.",
+      "finding_ids": [
+        "f_94b56e48dcb1"
+      ]
+    }
+  ],
+  "conversation_starters": [
+    {
+      "kind": "conversation_starter",
+      "text": "Ask how their publicly stated view (“Daniel Okafor focuses on battery storage forecasting and grid analytics.”) applies to the grid-scale battery analytics partnership at Helio Grid.",
+      "rationale": "Public, professional, and relevant: mentions meeting topics: analytics, battery.",
+      "finding_ids": [
+        "f_686e3561f9f9"
+      ],
+      "optional": false
+    },
+    {
+      "kind": "conversation_starter",
+      "text": "Mention their public appearance openly (“Daniel Okafor of Helio Grid spoke on a panel about grid-scale battery analytics at Energy Storage Forum 2026.”) and ask what reaction it got and how it connects to the grid-scale battery analytics partnership.",
+      "rationale": "Public, professional, and relevant: mentions meeting topics: analytics, battery, grid-scale.",
+      "finding_ids": [
+        "f_94b56e48dcb1"
+      ],
+      "optional": false
+    }
+  ],
+  "questions": [
+    {
+      "kind": "question",
+      "text": "What are Helio Grid's current priorities around the grid-scale battery analytics partnership?",
+      "rationale": "Their priorities are not established by public sources; asking avoids assumptions.",
+      "finding_ids": [
+        "f_686e3561f9f9"
+      ],
+      "optional": false
+    },
+    {
+      "kind": "question",
+      "text": "What would a successful outcome of this conversation look like for Daniel?",
+      "rationale": "Clarifies decision criteria for the stated meeting purpose.",
+      "finding_ids": [
+        "f_686e3561f9f9"
+      ],
+      "optional": false
+    },
+    {
+      "kind": "question",
+      "text": "How does the recent development (“Okafor said the company will prioritise battery analytics partnerships in 2027.”) change their plans for the grid-scale battery analytics partnership?",
+      "rationale": "Recent, public company news tied to the meeting topic.",
+      "finding_ids": [
+        "f_a3430c3ebb37"
+      ],
+      "optional": false
+    }
+  ],
+  "common_ground": [],
+  "prep_notes": [],
+  "hypotheses": [
+    "f_686e3561f9f9"
+  ],
+  "unknowns": [
+    "Their current priorities, constraints and decision-making role for this meeting are not established by public sources; ask rather than assume."
+  ],
+  "findings": [
+    {
+      "id": "f_686e3561f9f9",
+      "claim": "Daniel Okafor focuses on battery storage forecasting and grid analytics.",
+      "category": "professional_expertise",
+      "source_id": "src_604f78ab4724",
+      "source_url": "https://heliogrid.example/about/leadership",
+      "source_name": "Leadership - Helio Grid",
+      "source_tier": "official",
+      "excerpt": "He focuses on battery storage forecasting and grid analytics.",
+      "published_at": "2026-01-15",
+      "retrieved_at": "2026-10-17T13:30:32.803372Z",
+      "identity_score": 0.95,
+      "identity_confidence": "high",
+      "source_reliability": "high",
+      "evidence_strength": "medium",
+      "corroborating_urls": [],
+      "disclosure": "third_party_report",
+      "preference_tier": "hypothesis_needs_confirmation",
+      "freshness": 1.0,
+      "relevance": 0.865,
+      "relevance_reason": "mentions meeting topics: analytics, battery",
+      "confidence_score": 0.832,
+      "confidence": "high",
+      "rank_score": 0.887,
+      "suitable_for_personalization": true,
+      "exclusion_reason": null,
+      "downgrade_reasons": [],
+      "feedback": null
+    },
+    {
+      "id": "f_a3430c3ebb37",
+      "claim": "Okafor said the company will prioritise battery analytics partnerships in 2027.",
+      "category": "company_activity",
+      "source_id": "src_51da8a810586",
+      "source_url": "https://businessherald.example/2026/09/helio-grid-reshuffle",
+      "source_name": "Helio Grid reshuffles leadership - Business Herald",
+      "source_tier": "reputable_publication",
+      "excerpt": "Okafor said the company will prioritise battery analytics partnerships in 2027.",
+      "published_at": "2026-09-30",
+      "retrieved_at": "2026-10-17T13:30:32.803372Z",
+      "identity_score": 0.7,
+      "identity_confidence": "high",
+      "source_reliability": "high",
+      "evidence_strength": "medium",
+      "corroborating_urls": [],
+      "disclosure": "explicitly_stated",
+      "preference_tier": "not_applicable",
+      "freshness": 1.0,
+      "relevance": 0.798,
+      "relevance_reason": "mentions meeting topics: analytics, battery",
+      "confidence_score": 0.82,
+      "confidence": "high",
+      "rank_score": 0.856,
+      "suitable_for_personalization": true,
+      "exclusion_reason": null,
+      "downgrade_reasons": [],
+      "feedback": null
+    },
+    {
+      "id": "f_94b56e48dcb1",
+      "claim": "Daniel Okafor of Helio Grid spoke on a panel about grid-scale battery analytics at Energy Storage Forum 2026.",
+      "category": "speaking_appearance",
+      "source_id": "src_1b83fb806652",
+      "source_url": "https://energyweek.example/2026/05/storage-panel",
+      "source_name": "Energy Storage Forum 2026 panel recap",
+      "source_tier": "general_web",
+      "excerpt": "Daniel Okafor of Helio Grid spoke on a panel about grid-scale battery analytics at Energy Storage Forum 2026.",
+      "published_at": "2026-05-12",
+      "retrieved_at": "2026-10-17T13:30:32.803372Z",
+      "identity_score": 0.7,
+      "identity_confidence": "high",
+      "source_reliability": "low",
+      "evidence_strength": "low",
+      "corroborating_urls": [],
+      "disclosure": "observed_activity",
+      "preference_tier": "not_applicable",
+      "freshness": 1.0,
+      "relevance": 0.82,
+      "relevance_reason": "mentions meeting topics: analytics, battery, grid-scale",
+      "confidence_score": 0.647,
+      "confidence": "medium",
+      "rank_score": 0.744,
+      "suitable_for_personalization": true,
+      "exclusion_reason": null,
+      "downgrade_reasons": [],
+      "feedback": null
+    },
+    {
+      "id": "f_8ec6a0488b0f",
+      "claim": "After a leadership reshuffle, Helio Grid named Daniel Okafor as VP of Engineering at Helio Grid.",
+      "category": "role_and_career",
+      "source_id": "src_51da8a810586",
+      "source_url": "https://businessherald.example/2026/09/helio-grid-reshuffle",
+      "source_name": "Helio Grid reshuffles leadership - Business Herald",
+      "source_tier": "reputable_publication",
+      "excerpt": "After a leadership reshuffle, Helio Grid named Daniel Okafor as VP of Engineering at Helio Grid.",
+      "published_at": "2026-09-30",
+      "retrieved_at": "2026-10-17T13:30:32.803372Z",
+      "identity_score": 0.7,
+      "identity_confidence": "high",
+      "source_reliability": "high",
+      "evidence_strength": "medium",
+      "corroborating_urls": [],
+      "disclosure": "observed_activity",
+      "preference_tier": "not_applicable",
+      "freshness": 1.0,
+      "relevance": 0.27,
+      "relevance_reason": "general role and career context; no direct meeting-topic overlap",
+      "confidence_score": 0.797,
+      "confidence": "high",
+      "rank_score": 0.637,
+      "suitable_for_personalization": true,
+      "exclusion_reason": null,
+      "downgrade_reasons": [],
+      "feedback": null
+    },
+    {
+      "id": "f_40209417486a",
+      "claim": "Daniel Okafor is Chief Technology Officer at Helio Grid.",
+      "category": "role_and_career",
+      "source_id": "src_604f78ab4724",
+      "source_url": "https://heliogrid.example/about/leadership",
+      "source_name": "Leadership - Helio Grid",
+      "source_tier": "official",
+      "excerpt": "Daniel Okafor is Chief Technology Officer at Helio Grid.",
+      "published_at": "2026-01-15",
+      "retrieved_at": "2026-10-17T13:30:32.803372Z",
+      "identity_score": 0.95,
+      "identity_confidence": "high",
+      "source_reliability": "high",
+      "evidence_strength": "medium",
+      "corroborating_urls": [],
+      "disclosure": "observed_activity",
+      "preference_tier": "not_applicable",
+      "freshness": 1.0,
+      "relevance": 0.27,
+      "relevance_reason": "general role and career context; no direct meeting-topic overlap",
+      "confidence_score": 0.765,
+      "confidence": "high",
+      "rank_score": 0.626,
+      "suitable_for_personalization": false,
+      "exclusion_reason": "outdated or contradicted; confirm before relying on it",
+      "downgrade_reasons": [
+        "job title 'cto' contradicted by a newer source"
+      ],
+      "feedback": null
+    }
+  ],
+  "excluded": [
+    {
+      "source_url": "https://heliogrid.example/blog/removed-post",
+      "category": null,
+      "reason": "unavailable (404)"
+    },
+    {
+      "source_url": "https://sportsdaily.example/okafor-signs",
+      "category": null,
+      "reason": "identity not matched: name linked to 'Lagos United'"
+    }
+  ],
+  "sources": [
+    {
+      "id": "src_604f78ab4724",
+      "url": "https://heliogrid.example/about/leadership",
+      "domain": "heliogrid.example",
+      "title": "Leadership - Helio Grid",
+      "published_at": "2026-01-15",
+      "retrieved_at": "2026-10-17T13:30:32.803372Z",
+      "provider": "fixture",
+      "tier": "official",
+      "fetch_status": "ok",
+      "injection_flags": [],
+      "identity": {
+        "score": 0.95,
+        "level": "high",
+        "signals": [
+          "full name mentioned 1x",
+          "organisation mentioned",
+          "organisation near name",
+          "official organisation domain"
+        ],
+        "conflicts": []
+      },
+      "used": true,
+      "skip_reason": null
+    },
+    {
+      "id": "src_731afe657725",
+      "url": "https://heliogrid.example/blog/removed-post",
+      "domain": "heliogrid.example",
+      "title": "Removed",
+      "published_at": "2025-12-01",
+      "retrieved_at": "2026-10-17T13:30:32.803372Z",
+      "provider": "fixture",
+      "tier": "official",
+      "fetch_status": "unavailable (404)",
+      "injection_flags": [],
+      "identity": {
+        "score": 0.0,
+        "level": "low",
+        "signals": [],
+        "conflicts": []
+      },
+      "used": false,
+      "skip_reason": null
+    },
+    {
+      "id": "src_51da8a810586",
+      "url": "https://businessherald.example/2026/09/helio-grid-reshuffle",
+      "domain": "businessherald.example",
+      "title": "Helio Grid reshuffles leadership - Business Herald",
+      "published_at": "2026-09-30",
+      "retrieved_at": "2026-10-17T13:30:32.803372Z",
+      "provider": "fixture",
+      "tier": "reputable_publication",
+      "fetch_status": "ok",
+      "injection_flags": [],
+      "identity": {
+        "score": 0.7,
+        "level": "high",
+        "signals": [
+          "full name mentioned 1x",
+          "organisation mentioned",
+          "organisation near name"
+        ],
+        "conflicts": []
+      },
+      "used": true,
+      "skip_reason": null
+    },
+    {
+      "id": "src_1b83fb806652",
+      "url": "https://energyweek.example/2026/05/storage-panel",
+      "domain": "energyweek.example",
+      "title": "Energy Storage Forum 2026 panel recap",
+      "published_at": "2026-05-12",
+      "retrieved_at": "2026-10-17T13:30:32.803372Z",
+      "provider": "fixture",
+      "tier": "general_web",
+      "fetch_status": "ok",
+      "injection_flags": [],
+      "identity": {
+        "score": 0.7,
+        "level": "high",
+        "signals": [
+          "full name mentioned 1x",
+          "organisation mentioned",
+          "organisation near name"
+        ],
+        "conflicts": []
+      },
+      "used": true,
+      "skip_reason": null
+    },
+    {
+      "id": "src_5f8c597deb25",
+      "url": "https://sportsdaily.example/okafor-signs",
+      "domain": "sportsdaily.example",
+      "title": "Okafor signs new deal",
+      "published_at": "2026-08-01",
+      "retrieved_at": "2026-10-17T13:30:32.804355Z",
+      "provider": "fixture",
+      "tier": "general_web",
+      "fetch_status": "ok",
+      "injection_flags": [],
+      "identity": {
+        "score": 0.0,
+        "level": "low",
+        "signals": [
+          "full name mentioned 1x"
+        ],
+        "conflicts": [
+          "name linked to 'Lagos United'"
+        ]
+      },
+      "used": false,
+      "skip_reason": "identity not matched: name linked to 'Lagos United'"
+    }
+  ],
+  "queries": [
+    {
+      "text": "\"Daniel Okafor\" \"Helio Grid\"",
+      "include_domains": [],
+      "purpose": "identity and current role",
+      "origin": "template"
+    },
+    {
+      "text": "\"Daniel Okafor\" \"Helio Grid\" (interview OR podcast OR keynote OR panel)",
+      "include_domains": [],
+      "purpose": "public appearances",
+      "origin": "template"
+    },
+    {
+      "text": "\"Daniel Okafor\" \"Helio Grid\" (conference OR summit OR speaker)",
+      "include_domains": [],
+      "purpose": "speaking engagements",
+      "origin": "template"
+    },
+    {
+      "text": "\"Daniel Okafor\" (article OR blog OR paper OR wrote)",
+      "include_domains": [],
+      "purpose": "publications",
+      "origin": "template"
+    },
+    {
+      "text": "\"Daniel Okafor\" grid-scale battery analytics",
+      "include_domains": [],
+      "purpose": "views on meeting topics",
+      "origin": "template"
+    },
+    {
+      "text": "\"Daniel Okafor\"",
+      "include_domains": [
+        "heliogrid.example"
+      ],
+      "purpose": "official biography",
+      "origin": "template"
+    },
+    {
+      "text": "\"Helio Grid\" (announces OR launches OR raises)",
+      "include_domains": [],
+      "purpose": "company news",
+      "origin": "template"
+    }
+  ],
+  "warnings": [
+    "Sources give different job titles: cto; vp of engineering. Confirm before the meeting."
+  ],
+  "usage": {
+    "search_calls": {
+      "fixture": 7
+    },
+    "pages_fetched": 5,
+    "llm_calls": 0,
+    "llm_input_tokens": 0,
+    "llm_output_tokens": 0,
+    "estimated_cost_usd": 0.0
+  }
+}

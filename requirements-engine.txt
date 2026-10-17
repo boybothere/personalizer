@@ -1,0 +1,10 @@
+# Research engine (engine/) - deterministic, no LLM SDKs. Pinned to the versions tested.
+httpx==0.28.1
+pydantic==2.14.1
+trafilatura==2.3.1     # main-text extraction + htmldate (Apache-2.0)
+feedparser==6.0.14     # RSS/Atom (BSD-2-Clause)
+lxml==6.1.3            # HTML parsing (also required by trafilatura)
+python-dateutil==2.9.0.post0  # strict full-date parsing in the date resolver
+tld==0.13.2            # registrable-domain detection via the Public Suffix List
+charset-normalizer==3.5.2     # encoding detection fallback
+pytest==9.1.1

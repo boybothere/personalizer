@@ -1,0 +1,89 @@
+{
+  "id": "rpt_a945e13fb472",
+  "created_at": "2026-10-17T13:30:32.852963Z",
+  "mode": "heuristic",
+  "request": {
+    "name": "Arjun Mehta",
+    "organization": "Quietly Labs",
+    "organization_domain": null,
+    "role": null,
+    "location": null,
+    "profile_url": null,
+    "meeting_purpose": "Intro call about data platform tooling",
+    "requester_context": null,
+    "excluded_categories": [],
+    "allow_personal_interests": true,
+    "max_sources": 12
+  },
+  "identity": {
+    "resolved": false,
+    "confidence": "low",
+    "notes": [
+      "Identity could not be confirmed from public sources; treat any findings with caution."
+    ]
+  },
+  "professional_context": [],
+  "conversation_starters": [],
+  "questions": [],
+  "common_ground": [],
+  "prep_notes": [],
+  "hypotheses": [],
+  "unknowns": [
+    "Identity unresolved: no reliable source ties this name to the given organisation.",
+    "Current role could not be verified from public sources.",
+    "No public statements on the meeting topics were found.",
+    "Their current priorities, constraints and decision-making role for this meeting are not established by public sources; ask rather than assume."
+  ],
+  "findings": [],
+  "excluded": [],
+  "sources": [],
+  "queries": [
+    {
+      "text": "\"Arjun Mehta\" \"Quietly Labs\"",
+      "include_domains": [],
+      "purpose": "identity and current role",
+      "origin": "template"
+    },
+    {
+      "text": "\"Arjun Mehta\" \"Quietly Labs\" (interview OR podcast OR keynote OR panel)",
+      "include_domains": [],
+      "purpose": "public appearances",
+      "origin": "template"
+    },
+    {
+      "text": "\"Arjun Mehta\" \"Quietly Labs\" (conference OR summit OR speaker)",
+      "include_domains": [],
+      "purpose": "speaking engagements",
+      "origin": "template"
+    },
+    {
+      "text": "\"Arjun Mehta\" (article OR blog OR paper OR wrote)",
+      "include_domains": [],
+      "purpose": "publications",
+      "origin": "template"
+    },
+    {
+      "text": "\"Arjun Mehta\" data platform tooling",
+      "include_domains": [],
+      "purpose": "views on meeting topics",
+      "origin": "template"
+    },
+    {
+      "text": "\"Quietly Labs\" (announces OR launches OR raises)",
+      "include_domains": [],
+      "purpose": "company news",
+      "origin": "template"
+    }
+  ],
+  "warnings": [],
+  "usage": {
+    "search_calls": {
+      "fixture": 6
+    },
+    "pages_fetched": 0,
+    "llm_calls": 0,
+    "llm_input_tokens": 0,
+    "llm_output_tokens": 0,
+    "estimated_cost_usd": 0.0
+  }
+}

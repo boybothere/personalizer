@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Personalizer</title>
+<style>
+  :root { --bg:#f7f7f5; --card:#fff; --ink:#1d1d1b; --muted:#6b6b66; --line:#e3e2dc; --accent:#2f5d8a; --warn:#9a5b00; --bad:#a3312a; --good:#2e7d4f; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#151514; --card:#1f1f1d; --ink:#ecebe6; --muted:#a3a29b; --line:#34332f; --accent:#8bb4de; --warn:#e0a54a; --bad:#e2837b; --good:#7cc79a; } }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width:980px; margin:0 auto; padding:24px 16px 64px; }
+  h1 { font-size:22px; margin:0 0 4px; } h2 { font-size:17px; margin:24px 0 8px; } .muted { color:var(--muted); }
+  form, .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; }
+  label { display:block; font-size:13px; color:var(--muted); margin-bottom:4px; }
+  input, textarea { width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--ink); font:inherit; }
+  textarea { min-height:60px; } .full { grid-column:1/-1; }
+  button { background:var(--accent); color:#fff; border:0; border-radius:6px; padding:8px 14px; font:inherit; cursor:pointer; }
+  button.ghost { background:transparent; color:var(--accent); border:1px solid var(--line); padding:2px 8px; font-size:12px; }
+  button:disabled { opacity:.5; cursor:wait; }
+  ul { padding-left:20px; } li { margin:6px 0; } .why { color:var(--muted); font-size:13px; }
+  .cite { font-size:12px; color:var(--accent); margin-left:4px; }
+  .tag { display:inline-block; font-size:11px; padding:1px 6px; border-radius:4px; border:1px solid var(--line); margin-right:4px; }
+  .high { color:var(--good); } .medium { color:var(--warn); } .low { color:var(--bad); }
+  .finding { border-top:1px solid var(--line); padding:10px 0; } .finding blockquote { margin:6px 0; padding-left:10px; border-left:3px solid var(--line); color:var(--muted); }
+  .warn { color:var(--warn); } .err { color:var(--bad); white-space:pre-wrap; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  a { color:var(--accent); overflow-wrap:anywhere; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Personalizer</h1>
+  <p class="muted">Evidence-backed meeting preparation from public, professional sources. Every item cites its evidence.</p>
+  <form id="f">
+    <div class="grid">
+      <div><label>Name *</label><input name="name" required placeholder="Priya Raman"></div>
+      <div><label>Organisation</label><input name="organization" placeholder="Nimbus Compute"></div>
+      <div><label>Organisation domain</label><input name="organization_domain" placeholder="nimbuscompute.example"></div>
+      <div><label>Role</label><input name="role" placeholder="VP of Infrastructure"></div>
+      <div><label>Known public profile URL</label><input name="profile_url" placeholder="https://…"></div>
+      <div><label>Location</label><input name="location"></div>
+      <div class="full"><label>Meeting purpose *</label><textarea name="meeting_purpose" required placeholder="Discuss an AI infrastructure partnership focused on GPU capacity"></textarea></div>
+      <div class="full"><label>About you (optional, used only to find genuine common ground)</label><input name="requester_context"></div>
+      <div class="full row"><label style="margin:0"><input type="checkbox" name="allow_personal_interests" checked style="width:auto"> Allow publicly self-disclosed personal interests</label></div>
+    </div>
+    <p class="row"><button id="go">Research</button><span id="status" class="muted"></span></p>
+  </form>
+  <div id="out"></div>
+</main>
+<script>
+const $ = (tag, attrs = {}, ...kids) => { const e = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) { if (k === "class") e.className = v; else if (k.startsWith("on")) e.addEventListener(k.slice(2), v); else e.setAttribute(k, v); } for (const k of kids) e.append(k instanceof Node ? k : document.createTextNode(String(k ?? ""))); return e; };
+const out = document.getElementById("out"), status = document.getElementById("status");
+let token = ""; try { token = localStorage.getItem("personalizer_token") || ""; } catch (e) {}
+const headers = () => Object.assign({"Content-Type": "application/json"}, token ? {Authorization: "Bearer " + token} : {});
+
+document.getElementById("f").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const fd = new FormData(ev.target), body = {};
+  for (const [k, v] of fd.entries()) if (v && k !== "allow_personal_interests") body[k] = v;
+  body.allow_personal_interests = fd.has("allow_personal_interests");
+  const btn = document.getElementById("go"); btn.disabled = true; status.textContent = "Researching… this can take a minute."; out.replaceChildren();
+  try {
+    const r = await fetch("/api/research", {method: "POST", headers: headers(), body: JSON.stringify(body)});
+    const data = await r.json();
+    if (!r.ok) throw new Error(typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail, null, 1));
+    render(data); status.textContent = "";
+  } catch (e) { out.replaceChildren($("p", {class: "err"}, e.message)); status.textContent = ""; }
+  btn.disabled = false;
+});
+
+function render(r) {
+  const num = new Map(r.findings.map((f, i) => [f.id, i + 1]));
+  const cite = ids => $("span", {class: "cite"}, ids.map(i => `[${num.get(i)}]`).join(""));
+  const list = (items, fmt) => items.length ? $("ul", {}, ...items.map(fmt)) : $("p", {class: "muted"}, "Nothing supported by the evidence.");
+  const sug = s => $("li", {}, s.optional ? "(optional) " : "", s.text, cite(s.finding_ids), $("div", {class: "why"}, "Why: " + s.rationale));
+  const card = $("div", {class: "card"},
+    $("div", {class: "row"}, $("strong", {}, `${r.request.name}${r.request.organization ? " · " + r.request.organization : ""}`),
+      $("span", {class: "tag"}, "mode: " + r.mode),
+      $("span", {class: "tag " + r.identity.confidence}, `identity ${r.identity.resolved ? "resolved" : "NOT resolved"} (${r.identity.confidence})`),
+      $("a", {href: `/api/reports/${r.id}/markdown`, target: "_blank"}, "Markdown"),
+      $("button", {class: "ghost", onclick: async () => { await fetch(`/api/reports/${r.id}`, {method: "DELETE", headers: headers()}); out.replaceChildren($("p", {class: "muted"}, "Report deleted.")); }}, "Delete report")),
+    ...r.identity.notes.map(n => $("p", {class: "warn"}, n)),
+    $("h2", {}, "Professional context"), list(r.professional_context, s => $("li", {}, s.text, cite(s.finding_ids))),
+    $("h2", {}, "Conversation starters"), list(r.conversation_starters, sug),
+    $("h2", {}, "Questions to ask"), list(r.questions, sug),
+    $("h2", {}, "Optional common ground"), list(r.common_ground, sug),
+    ...(r.prep_notes.length ? [$("h2", {}, "Preparation notes"), list(r.prep_notes, sug)] : []),
+    $("h2", {}, "Unknowns (do not assume)"), list(r.unknowns, u => $("li", {}, u)),
+    ...(r.warnings.length ? [$("h2", {}, "Warnings"), list(r.warnings, w => $("li", {class: "warn"}, w))] : []),
+    $("h2", {}, "Evidence"),
+    ...r.findings.map(f => $("div", {class: "finding"},
+      $("div", {class: "row"}, $("strong", {}, `[${num.get(f.id)}]`), f.claim),
+      $("blockquote", {}, "“" + f.excerpt + "”"),
+      $("div", {class: "row"},
+        $("a", {href: f.source_url, target: "_blank", rel: "noopener noreferrer nofollow"}, f.source_name),
+        $("span", {class: "tag"}, f.category), $("span", {class: "tag"}, f.published_at || "date unknown"),
+        $("span", {class: "tag " + f.confidence}, `confidence ${f.confidence}`), $("span", {class: "tag"}, f.disclosure),
+        $("span", {class: "tag " + (f.suitable_for_personalization ? "high" : "low")}, f.suitable_for_personalization ? "used" : "not used: " + f.exclusion_reason)),
+      ...(f.downgrade_reasons.length ? [$("div", {class: "why"}, "Downgraded: " + f.downgrade_reasons.join("; "))] : []),
+      $("div", {class: "row"}, ...["accurate", "incorrect", "irrelevant", "inappropriate"].map(label =>
+        $("button", {class: "ghost", onclick: async (ev) => {
+          const res = await fetch(`/api/reports/${r.id}/findings/${f.id}/feedback`, {method: "POST", headers: headers(), body: JSON.stringify({label})});
+          ev.target.textContent = res.ok ? label + " ✓" : "error";
+        }}, label))))),
+    $("p", {class: "muted"}, `Usage: ${Object.values(r.usage.search_calls).reduce((a, b) => a + b, 0)} searches, ${r.usage.pages_fetched} pages fetched, ${r.usage.llm_calls} LLM calls, est. $${r.usage.estimated_cost_usd.toFixed(4)}. Confidence levels are rule-based, not probabilities.`));
+  out.replaceChildren(card);
+}
+</script>
+</body>
+</html>

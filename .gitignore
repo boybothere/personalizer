@@ -1,0 +1,40 @@
+# --- Python environments, caches and build artifacts
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.egg-info/
+build/
+dist/
+
+# --- Secrets and local configuration (the placeholder template is kept)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# --- Research data and databases (never commit)
+data/
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# --- Research outputs about real people (live runs)
+examples/live-*
+
+# --- Logs and temporary files
+*.log
+*.tmp
+.DS_Store
+Thumbs.db

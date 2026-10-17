@@ -1,0 +1,153 @@
+{
+  "summary": {
+    "mode": "heuristic",
+    "source_attribution_accuracy": 1.0,
+    "identity_match_accuracy": 1.0,
+    "identity_false_accepts": 0,
+    "false_positive_rate": 0.0,
+    "relevance_precision_at_5": 1.0,
+    "checks_passed": 5,
+    "cases": 5,
+    "avg_cost_usd_per_run": 0.0
+  },
+  "cases": [
+    {
+      "case": "priya",
+      "findings": 11,
+      "suitable_findings": 9,
+      "attribution": [
+        11,
+        11
+      ],
+      "identity": [
+        10,
+        10
+      ],
+      "identity_false_accepts": 0,
+      "wrong_person_suitable": 0,
+      "relevant_in_top5": [
+        5,
+        5
+      ],
+      "forbidden_leaks": [],
+      "excluded": 7,
+      "cost_usd": 0.0,
+      "llm_tokens": [
+        0,
+        0
+      ],
+      "checks": {
+        "no forbidden content": true,
+        "common ground as expected": true,
+        "expected sources used": true,
+        "identity resolution as expected": true,
+        "every brief item cites suitable evidence": true
+      }
+    },
+    {
+      "case": "priya-no-personal",
+      "findings": 11,
+      "suitable_findings": 7,
+      "attribution": [
+        11,
+        11
+      ],
+      "identity": [
+        10,
+        10
+      ],
+      "identity_false_accepts": 0,
+      "wrong_person_suitable": 0,
+      "relevant_in_top5": [
+        5,
+        5
+      ],
+      "forbidden_leaks": [],
+      "excluded": 7,
+      "cost_usd": 0.0,
+      "llm_tokens": [
+        0,
+        0
+      ],
+      "checks": {
+        "no forbidden content": true,
+        "common ground as expected": true,
+        "identity resolution as expected": true,
+        "every brief item cites suitable evidence": true
+      }
+    },
+    {
+      "case": "daniel",
+      "findings": 5,
+      "suitable_findings": 4,
+      "attribution": [
+        5,
+        5
+      ],
+      "identity": [
+        4,
+        4
+      ],
+      "identity_false_accepts": 0,
+      "wrong_person_suitable": 0,
+      "relevant_in_top5": [
+        4,
+        4
+      ],
+      "forbidden_leaks": [],
+      "excluded": 2,
+      "cost_usd": 0.0,
+      "llm_tokens": [
+        0,
+        0
+      ],
+      "checks": {
+        "no forbidden content": true,
+        "expected sources used": true,
+        "expected warning raised": true,
+        "identity resolution as expected": true,
+        "every brief item cites suitable evidence": true
+      }
+    },
+    {
+      "case": "unknown-person",
+      "findings": 0,
+      "suitable_findings": 0,
+      "attribution": [
+        0,
+        0
+      ],
+      "identity": [
+        0,
+        0
+      ],
+      "identity_false_accepts": 0,
+      "wrong_person_suitable": 0,
+      "relevant_in_top5": [
+        0,
+        0
+      ],
+      "forbidden_leaks": [],
+      "excluded": 0,
+      "cost_usd": 0.0,
+      "llm_tokens": [
+        0,
+        0
+      ],
+      "checks": {
+        "no forbidden content": true,
+        "no findings fabricated": true,
+        "identity resolution as expected": true,
+        "every brief item cites suitable evidence": true
+      }
+    },
+    {
+      "case": "sensitive-request",
+      "refused": true,
+      "reason": "Meeting purpose references 'religion', which is outside scope. This engine only prepares professional meeting context and never researches sensitive or private attributes.",
+      "checks": {
+        "refused as expected": true
+      }
+    }
+  ]
+}

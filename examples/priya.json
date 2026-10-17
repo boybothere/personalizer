@@ -1,0 +1,862 @@
+{
+  "id": "rpt_a916e3f35909",
+  "created_at": "2026-10-17T13:30:32.686916Z",
+  "mode": "heuristic",
+  "request": {
+    "name": "Priya Raman",
+    "organization": "Nimbus Compute",
+    "organization_domain": "nimbuscompute.example",
+    "role": "VP of Infrastructure",
+    "location": null,
+    "profile_url": null,
+    "meeting_purpose": "Discuss an AI infrastructure partnership focused on GPU capacity and inference costs",
+    "requester_context": "I lead partnerships for a GPU inference optimisation startup",
+    "excluded_categories": [],
+    "allow_personal_interests": true,
+    "max_sources": 12
+  },
+  "identity": {
+    "resolved": true,
+    "confidence": "high",
+    "notes": [
+      "Sources about a different or unverified person were excluded (name linked to 'Saffron Bakehouse'; name only appears in hedged or unverified attribution)."
+    ]
+  },
+  "professional_context": [
+    {
+      "text": "Priya Raman is Vice President of Infrastructure at Nimbus Compute, where she leads the GPU cloud platform team.",
+      "finding_ids": [
+        "f_d3f41583664e"
+      ]
+    },
+    {
+      "text": "Priya Raman focuses on GPU scheduling and inference efficiency for large AI workloads.",
+      "finding_ids": [
+        "f_77f45f1595fe"
+      ]
+    },
+    {
+      "text": "Priya Raman said the Series C funds will double the company's H100 capacity by next year.",
+      "finding_ids": [
+        "f_f5ccfef4d83e"
+      ]
+    },
+    {
+      "text": "In this article, Priya Raman argues that most AI teams waste a third of their GPU spend on idle capacity.",
+      "finding_ids": [
+        "f_fea92a446857"
+      ]
+    }
+  ],
+  "conversation_starters": [
+    {
+      "kind": "conversation_starter",
+      "text": "Ask how their publicly stated view (“Priya Raman focuses on GPU scheduling and inference efficiency for large AI workloads.”) applies to the AI infrastructure partnership at Nimbus Compute.",
+      "rationale": "Public, professional, and relevant: mentions meeting topics: ai, gpu, inference.",
+      "finding_ids": [
+        "f_77f45f1595fe"
+      ],
+      "optional": false
+    },
+    {
+      "kind": "conversation_starter",
+      "text": "Say you read their published piece (“In this article, Priya Raman argues that most AI teams waste a third of their GPU spend on idle capacity.”) and ask which point matters most for the AI infrastructure partnership.",
+      "rationale": "Public, professional, and relevant: mentions meeting topics: ai, capacity, gpu.",
+      "finding_ids": [
+        "f_fea92a446857"
+      ],
+      "optional": false
+    },
+    {
+      "kind": "conversation_starter",
+      "text": "Say you read their published piece (“Raman wrote that inference costs, not training, will dominate AI infrastructure budgets by 2027.”) and ask which point matters most for the AI infrastructure partnership.",
+      "rationale": "Public, professional, and relevant: mentions meeting topics: ai, costs, inference, infrastructure.",
+      "finding_ids": [
+        "f_92e3113284c8"
+      ],
+      "optional": false
+    }
+  ],
+  "questions": [
+    {
+      "kind": "question",
+      "text": "What are Nimbus Compute's current priorities around the AI infrastructure partnership?",
+      "rationale": "Their priorities are not established by public sources; asking avoids assumptions.",
+      "finding_ids": [
+        "f_d3f41583664e"
+      ],
+      "optional": false
+    },
+    {
+      "kind": "question",
+      "text": "What would a successful outcome of this conversation look like for Priya?",
+      "rationale": "Clarifies decision criteria for the stated meeting purpose.",
+      "finding_ids": [
+        "f_d3f41583664e"
+      ],
+      "optional": false
+    },
+    {
+      "kind": "question",
+      "text": "How does the recent development (“Priya Raman said the Series C funds will double the company's H100 capacity by next year.”) change their plans for the AI infrastructure partnership?",
+      "rationale": "Recent, public company news tied to the meeting topic.",
+      "finding_ids": [
+        "f_f5ccfef4d83e"
+      ],
+      "optional": false
+    }
+  ],
+  "common_ground": [
+    {
+      "kind": "common_ground",
+      "text": "They have mentioned this publicly (“\"I'm a lifelong cricket fan, and I still play weekend matches with my old college team,\" Raman said.”, Interview: Priya Raman of Nimbus Compute on scaling GPU clouds). Raise it only if you genuinely share the interest and it comes up naturally, and say where you saw it.",
+      "rationale": "Self-disclosed in a public, professional context; low priority versus business topics.",
+      "finding_ids": [
+        "f_48a641e5a2c7"
+      ],
+      "optional": true
+    },
+    {
+      "kind": "common_ground",
+      "text": "Professional overlap with your own background: gpu, inference.",
+      "rationale": "Overlap between your stated background and their documented public work.",
+      "finding_ids": [
+        "f_77f45f1595fe"
+      ],
+      "optional": false
+    }
+  ],
+  "prep_notes": [
+    {
+      "kind": "prep_note",
+      "text": "Publicly stated working preference: “\"I prefer a written pre-read before any partnership meeting,\" she said.”. Adapt the meeting format if relevant.",
+      "rationale": "Respecting stated preferences makes the meeting more effective.",
+      "finding_ids": [
+        "f_bc76539b2512"
+      ],
+      "optional": false
+    }
+  ],
+  "hypotheses": [
+    "f_77f45f1595fe",
+    "f_532daee137b8"
+  ],
+  "unknowns": [
+    "Their current priorities, constraints and decision-making role for this meeting are not established by public sources; ask rather than assume."
+  ],
+  "findings": [
+    {
+      "id": "f_d3f41583664e",
+      "claim": "Priya Raman is Vice President of Infrastructure at Nimbus Compute, where she leads the GPU cloud platform team.",
+      "category": "role_and_career",
+      "source_id": "src_73cbc0aa9391",
+      "source_url": "https://nimbuscompute.example/team/priya-raman",
+      "source_name": "Priya Raman - Leadership - Nimbus Compute",
+      "source_tier": "official",
+      "excerpt": "Priya Raman is Vice President of Infrastructure at Nimbus Compute, where she leads the GPU cloud platform team.",
+      "published_at": "2026-03-01",
+      "retrieved_at": "2026-10-17T13:30:32.672685Z",
+      "identity_score": 1.0,
+      "identity_confidence": "high",
+      "source_reliability": "high",
+      "evidence_strength": "medium",
+      "corroborating_urls": [],
+      "disclosure": "observed_activity",
+      "preference_tier": "not_applicable",
+      "freshness": 1.0,
+      "relevance": 0.82,
+      "relevance_reason": "mentions meeting topics: cloud, compute, gpu, infrastructure",
+      "confidence_score": 0.902,
+      "confidence": "high",
+      "rank_score": 0.894,
+      "suitable_for_personalization": true,
+      "exclusion_reason": null,
+      "downgrade_reasons": [],
+      "feedback": null
+    },
+    {
+      "id": "f_77f45f1595fe",
+      "claim": "Priya Raman focuses on GPU scheduling and inference efficiency for large AI workloads.",
+      "category": "professional_expertise",
+      "source_id": "src_73cbc0aa9391",
+      "source_url": "https://nimbuscompute.example/team/priya-raman",
+      "source_name": "Priya Raman - Leadership - Nimbus Compute",
+      "source_tier": "official",
+      "excerpt": "She focuses on GPU scheduling and inference efficiency for large AI workloads.",
+      "published_at": "2026-03-01",
+      "retrieved_at": "2026-10-17T13:30:32.672685Z",
+      "identity_score": 1.0,
+      "identity_confidence": "high",
+      "source_reliability": "high",
+      "evidence_strength": "medium",
+      "corroborating_urls": [],
+      "disclosure": "third_party_report",
+      "preference_tier": "hypothesis_needs_confirmation",
+      "freshness": 1.0,
+      "relevance": 0.865,
+      "relevance_reason": "mentions meeting topics: ai, gpu, inference",
+      "confidence_score": 0.85,
+      "confidence": "high",
+      "rank_score": 0.893,
+      "suitable_for_personalization": true,
+      "exclusion_reason": null,
+      "downgrade_reasons": [],
+      "feedback": null
+    },
+    {
+      "id": "f_f5ccfef4d83e",
+      "claim": "Priya Raman said the Series C funds will double the company's H100 capacity by next year.",
+      "category": "company_activity",
+      "source_id": "src_4c59978347a3",
+      "source_url": "https://nimbuscompute.example/news/series-c",
+      "source_name": "Nimbus Compute raises $120M Series C",
+      "source_tier": "official",
+      "excerpt": "Priya Raman said the Series C funds will double the company's H100 capacity by next year.",
+      "published_at": "2026-09-20",
+      "retrieved_at": "2026-10-17T13:30:32.671146Z",
+      "identity_score": 0.95,
+      "identity_confidence": "high",
+      "source_reliability": "high",
+      "evidence_strength": "medium",
+      "corroborating_urls": [],
+      "disclosure": "explicitly_stated",
+      "preference_tier": "not_applicable",
+      "freshness": 1.0,
+      "relevance": 0.798,
+      "relevance_reason": "mentions meeting topics: capacity, h100",
+      "confidence_score": 0.907,
+      "confidence": "high",
+      "rank_score": 0.887,
+      "suitable_for_personalization": true,
+      "exclusion_reason": null,
+      "downgrade_reasons": [],
+      "feedback": null
+    },
+    {
+      "id": "f_fea92a446857",
+      "claim": "In this article, Priya Raman argues that most AI teams waste a third of their GPU spend on idle capacity.",
+      "category": "publication",
+      "source_id": "src_d727649b3596",
+      "source_url": "https://dailytech.example/2026/07/gpu-idle-capacity-op-ed",
+      "source_name": "Opinion: Your GPUs are idle a third of the time - DailyTech",
+      "source_tier": "reputable_publication",
+      "excerpt": "In this article, Priya Raman argues that most AI teams waste a third of their GPU spend on idle capacity.",
+      "published_at": "2026-07-02",
+      "retrieved_at": "2026-10-17T13:30:32.672685Z",
+      "identity_score": 0.8,
+      "identity_confidence": "high",
+      "source_reliability": "high",
+      "evidence_strength": "medium",
+      "corroborating_urls": [],
+      "disclosure": "explicitly_stated",
+      "preference_tier": "not_applicable",
+      "freshness": 1.0,
+      "relevance": 0.82,
+      "relevance_reason": "mentions meeting topics: ai, capacity, gpu",
+      "confidence_score": 0.855,
+      "confidence": "high",
+      "rank_score": 0.877,
+      "suitable_for_personalization": true,
+      "exclusion_reason": null,
+      "downgrade_reasons": [],
+      "feedback": null
+    },
+    {
+      "id": "f_92e3113284c8",
+      "claim": "Raman wrote that inference costs, not training, will dominate AI infrastructure budgets by 2027.",
+      "category": "publication",
+      "source_id": "src_d727649b3596",
+      "source_url": "https://dailytech.example/2026/07/gpu-idle-capacity-op-ed",
+      "source_name": "Opinion: Your GPUs are idle a third of the time - DailyTech",
+      "source_tier": "reputable_publication",
+      "excerpt": "Raman wrote that inference costs, not training, will dominate AI infrastructure budgets by 2027.",
+      "published_at": "2026-07-02",
+      "retrieved_at": "2026-10-17T13:30:32.672685Z",
+      "identity_score": 0.8,
+      "identity_confidence": "high",
+      "source_reliability": "high",
+      "evidence_strength": "medium",
+      "corroborating_urls": [],
+      "disclosure": "explicitly_stated",
+      "preference_tier": "not_applicable",
+      "freshness": 1.0,
+      "relevance": 0.82,
+      "relevance_reason": "mentions meeting topics: ai, costs, inference, infrastructure",
+      "confidence_score": 0.855,
+      "confidence": "high",
+      "rank_score": 0.877,
+      "suitable_for_personalization": true,
+      "exclusion_reason": null,
+      "downgrade_reasons": [],
+      "feedback": null
+    },
+    {
+      "id": "f_04d7e60bab98",
+      "claim": "Priya Raman, VP of Infrastructure at Nimbus Compute, gave a keynote on cutting GPU idle time in multi-tenant clusters at AI Infra Summit 2026.",
+      "category": "speaking_appearance",
+      "source_id": "src_f55076f900f5",
+      "source_url": "https://aiinfrasummit.example/2026/speakers/priya-raman",
+      "source_name": "Priya Raman | AI Infra Summit 2026",
+      "source_tier": "professional_platform",
+      "excerpt": "Priya Raman, VP of Infrastructure at Nimbus Compute, gave a keynote on cutting GPU idle time in multi-tenant clusters at AI Infra Summit 2026.",
+      "published_at": "2026-05-10",
+      "retrieved_at": "2026-10-17T13:30:32.673721Z",
+      "identity_score": 0.95,
+      "identity_confidence": "high",
+      "source_reliability": "medium",
+      "evidence_strength": "low",
+      "corroborating_urls": [],
+      "disclosure": "observed_activity",
+      "preference_tier": "not_applicable",
+      "freshness": 1.0,
+      "relevance": 0.82,
+      "relevance_reason": "mentions meeting topics: ai, compute, gpu, infra, infrastructure",
+      "confidence_score": 0.81,
+      "confidence": "high",
+      "rank_score": 0.831,
+      "suitable_for_personalization": true,
+      "exclusion_reason": null,
+      "downgrade_reasons": [],
+      "feedback": null
+    },
+    {
+      "id": "f_b1bf4924cd62",
+      "claim": "Priya Raman of Nimbus Compute spoke on a panel about inference optimization at DevCon Bangalore.",
+      "category": "speaking_appearance",
+      "source_id": "src_6ed97b214789",
+      "source_url": "https://techblog.example/devcon-recap",
+      "source_name": "DevCon Bangalore recap",
+      "source_tier": "general_web",
+      "excerpt": "Priya Raman of Nimbus Compute spoke on a panel about inference optimization at DevCon Bangalore.",
+      "published_at": "2026-06-01",
+      "retrieved_at": "2026-10-17T13:30:32.675690Z",
+      "identity_score": 0.7,
+      "identity_confidence": "high",
+      "source_reliability": "low",
+      "evidence_strength": "low",
+      "corroborating_urls": [],
+      "disclosure": "observed_activity",
+      "preference_tier": "not_applicable",
+      "freshness": 1.0,
+      "relevance": 0.82,
+      "relevance_reason": "mentions meeting topics: compute, inference",
+      "confidence_score": 0.647,
+      "confidence": "medium",
+      "rank_score": 0.744,
+      "suitable_for_personalization": true,
+      "exclusion_reason": null,
+      "downgrade_reasons": [
+        "source contained hidden or instruction-like content"
+      ],
+      "feedback": null
+    },
+    {
+      "id": "f_bc76539b2512",
+      "claim": "Priya Raman said: \"\"I prefer a written pre-read before any partnership meeting,\" she said.\"",
+      "category": "communication_preference",
+      "source_id": "src_644719ca2901",
+      "source_url": "https://podcast.example/episodes/scaling-gpu-clouds",
+      "source_name": "Interview: Priya Raman of Nimbus Compute on scaling GPU clouds",
+      "source_tier": "general_web",
+      "excerpt": "\"I prefer a written pre-read before any partnership meeting,\" she said.",
+      "published_at": "2026-08-15",
+      "retrieved_at": "2026-10-17T13:30:32.674719Z",
+      "identity_score": 0.85,
+      "identity_confidence": "high",
+      "source_reliability": "low",
+      "evidence_strength": "low",
+      "corroborating_urls": [],
+      "disclosure": "explicitly_stated",
+      "preference_tier": "explicit_preference",
+      "freshness": 1.0,
+      "relevance": 0.27,
+      "relevance_reason": "general communication preference context; no direct meeting-topic overlap",
+      "confidence_score": 0.723,
+      "confidence": "medium",
+      "rank_score": 0.551,
+      "suitable_for_personalization": true,
+      "exclusion_reason": null,
+      "downgrade_reasons": [],
+      "feedback": null
+    },
+    {
+      "id": "f_48a641e5a2c7",
+      "claim": "\"I'm a lifelong cricket fan, and I still play weekend matches with my old college team,\" Raman said.",
+      "category": "disclosed_hobby",
+      "source_id": "src_644719ca2901",
+      "source_url": "https://podcast.example/episodes/scaling-gpu-clouds",
+      "source_name": "Interview: Priya Raman of Nimbus Compute on scaling GPU clouds",
+      "source_tier": "general_web",
+      "excerpt": "\"I'm a lifelong cricket fan, and I still play weekend matches with my old college team,\" Raman said.",
+      "published_at": "2026-08-15",
+      "retrieved_at": "2026-10-17T13:30:32.674719Z",
+      "identity_score": 0.85,
+      "identity_confidence": "high",
+      "source_reliability": "low",
+      "evidence_strength": "low",
+      "corroborating_urls": [],
+      "disclosure": "explicitly_stated",
+      "preference_tier": "explicit_preference",
+      "freshness": 1.0,
+      "relevance": 0.113,
+      "relevance_reason": "general disclosed hobby context; no direct meeting-topic overlap",
+      "confidence_score": 0.723,
+      "confidence": "medium",
+      "rank_score": 0.488,
+      "suitable_for_personalization": true,
+      "exclusion_reason": null,
+      "downgrade_reasons": [],
+      "feedback": null
+    },
+    {
+      "id": "f_c7e1506acebd",
+      "claim": "Priya Raman, a senior storage engineer at Nimbus Compute, leads the new object storage project.",
+      "category": "role_and_career",
+      "source_id": "src_25bf4d924195",
+      "source_url": "https://businessherald.example/2019/04/nimbus-storage-team",
+      "source_name": "Nimbus Compute bets on object storage - Business Herald",
+      "source_tier": "reputable_publication",
+      "excerpt": "Priya Raman, a senior storage engineer at Nimbus Compute, leads the new object storage project.",
+      "published_at": "2019-04-02",
+      "retrieved_at": "2026-10-17T13:30:32.673721Z",
+      "identity_score": 0.7,
+      "identity_confidence": "high",
+      "source_reliability": "high",
+      "evidence_strength": "medium",
+      "corroborating_urls": [],
+      "disclosure": "observed_activity",
+      "preference_tier": "not_applicable",
+      "freshness": 0.2,
+      "relevance": 0.545,
+      "relevance_reason": "mentions meeting topics: compute",
+      "confidence_score": 0.598,
+      "confidence": "medium",
+      "rank_score": 0.557,
+      "suitable_for_personalization": false,
+      "exclusion_reason": "outdated or contradicted; confirm before relying on it",
+      "downgrade_reasons": [
+        "may be outdated (time-sensitive claim from an old source)"
+      ],
+      "feedback": null
+    },
+    {
+      "id": "f_532daee137b8",
+      "claim": "Priya Raman of Nimbus Compute is rumoured to be a keen golfer, according to colleagues.",
+      "category": "disclosed_hobby",
+      "source_id": "src_54b05ec84dd2",
+      "source_url": "https://gossip.example/priya-golf",
+      "source_name": "Tech execs on the green",
+      "source_tier": "general_web",
+      "excerpt": "Priya Raman of Nimbus Compute is rumoured to be a keen golfer, according to colleagues.",
+      "published_at": "2026-01-10",
+      "retrieved_at": "2026-10-17T13:30:32.676724Z",
+      "identity_score": 0.7,
+      "identity_confidence": "high",
+      "source_reliability": "low",
+      "evidence_strength": "low",
+      "corroborating_urls": [],
+      "disclosure": "third_party_report",
+      "preference_tier": "hypothesis_needs_confirmation",
+      "freshness": 1.0,
+      "relevance": 0.388,
+      "relevance_reason": "mentions meeting topics: compute",
+      "confidence_score": 0.595,
+      "confidence": "medium",
+      "rank_score": 0.553,
+      "suitable_for_personalization": false,
+      "exclusion_reason": "personal interest not self-disclosed or corroborated; needs confirmation",
+      "downgrade_reasons": [],
+      "feedback": null
+    }
+  ],
+  "excluded": [
+    {
+      "source_url": "https://www.linkedin.com/in/priya-raman-nimbus",
+      "category": null,
+      "reason": "platform terms restrict automated collection; not used"
+    },
+    {
+      "source_url": "https://www.spokeo.com/Priya-Raman",
+      "category": null,
+      "reason": "people-search, data-broker, leak or records site; inappropriate source"
+    },
+    {
+      "source_url": "https://robots-blocked.example/priya-raman",
+      "category": null,
+      "reason": "skipped: disallowed by robots.txt"
+    },
+    {
+      "source_url": "https://paywalled.example/priya-raman-profile",
+      "category": null,
+      "reason": "skipped: access controlled (403)"
+    },
+    {
+      "source_url": "https://forum.example/thread/cloud-vendors",
+      "category": null,
+      "reason": "identity not matched: name only appears in hedged or unverified attribution"
+    },
+    {
+      "source_url": "https://podcast.example/episodes/scaling-gpu-clouds",
+      "category": "other",
+      "reason": "sensitive: religion or belief"
+    },
+    {
+      "source_url": "https://chefstories.example/priya-raman-pastry",
+      "category": null,
+      "reason": "identity not matched: name linked to 'Saffron Bakehouse'"
+    }
+  ],
+  "sources": [
+    {
+      "id": "src_4c59978347a3",
+      "url": "https://nimbuscompute.example/news/series-c",
+      "domain": "nimbuscompute.example",
+      "title": "Nimbus Compute raises $120M Series C",
+      "published_at": "2026-09-20",
+      "retrieved_at": "2026-10-17T13:30:32.671146Z",
+      "provider": "fixture",
+      "tier": "official",
+      "fetch_status": "ok",
+      "injection_flags": [],
+      "identity": {
+        "score": 0.95,
+        "level": "high",
+        "signals": [
+          "full name mentioned 1x",
+          "organisation mentioned",
+          "organisation near name",
+          "official organisation domain"
+        ],
+        "conflicts": []
+      },
+      "used": true,
+      "skip_reason": null
+    },
+    {
+      "id": "src_73cbc0aa9391",
+      "url": "https://nimbuscompute.example/team/priya-raman",
+      "domain": "nimbuscompute.example",
+      "title": "Priya Raman - Leadership - Nimbus Compute",
+      "published_at": "2026-03-01",
+      "retrieved_at": "2026-10-17T13:30:32.672685Z",
+      "provider": "fixture",
+      "tier": "official",
+      "fetch_status": "ok",
+      "injection_flags": [],
+      "identity": {
+        "score": 1.0,
+        "level": "high",
+        "signals": [
+          "full name mentioned 3x",
+          "page is about this name (title)",
+          "organisation mentioned",
+          "organisation near name",
+          "official organisation domain",
+          "role terms match"
+        ],
+        "conflicts": []
+      },
+      "used": true,
+      "skip_reason": null
+    },
+    {
+      "id": "src_d727649b3596",
+      "url": "https://dailytech.example/2026/07/gpu-idle-capacity-op-ed",
+      "domain": "dailytech.example",
+      "title": "Opinion: Your GPUs are idle a third of the time - DailyTech",
+      "published_at": "2026-07-02",
+      "retrieved_at": "2026-10-17T13:30:32.672685Z",
+      "provider": "fixture",
+      "tier": "reputable_publication",
+      "fetch_status": "ok",
+      "injection_flags": [],
+      "identity": {
+        "score": 0.8,
+        "level": "high",
+        "signals": [
+          "full name mentioned 2x",
+          "organisation mentioned",
+          "organisation near name",
+          "role terms match"
+        ],
+        "conflicts": []
+      },
+      "used": true,
+      "skip_reason": null
+    },
+    {
+      "id": "src_25bf4d924195",
+      "url": "https://businessherald.example/2019/04/nimbus-storage-team",
+      "domain": "businessherald.example",
+      "title": "Nimbus Compute bets on object storage - Business Herald",
+      "published_at": "2019-04-02",
+      "retrieved_at": "2026-10-17T13:30:32.673721Z",
+      "provider": "fixture",
+      "tier": "reputable_publication",
+      "fetch_status": "ok",
+      "injection_flags": [],
+      "identity": {
+        "score": 0.7,
+        "level": "high",
+        "signals": [
+          "full name mentioned 1x",
+          "organisation mentioned",
+          "organisation near name"
+        ],
+        "conflicts": []
+      },
+      "used": true,
+      "skip_reason": null
+    },
+    {
+      "id": "src_f55076f900f5",
+      "url": "https://aiinfrasummit.example/2026/speakers/priya-raman",
+      "domain": "aiinfrasummit.example",
+      "title": "Priya Raman | AI Infra Summit 2026",
+      "published_at": "2026-05-10",
+      "retrieved_at": "2026-10-17T13:30:32.673721Z",
+      "provider": "fixture",
+      "tier": "professional_platform",
+      "fetch_status": "ok",
+      "injection_flags": [],
+      "identity": {
+        "score": 0.95,
+        "level": "high",
+        "signals": [
+          "full name mentioned 2x",
+          "page is about this name (title)",
+          "organisation mentioned",
+          "organisation near name",
+          "role terms match"
+        ],
+        "conflicts": []
+      },
+      "used": true,
+      "skip_reason": null
+    },
+    {
+      "id": "src_48e53fe19202",
+      "url": "https://forum.example/thread/cloud-vendors",
+      "domain": "forum.example",
+      "title": "Are cloud vendors overpriced? - Forum",
+      "published_at": "2026-02-01",
+      "retrieved_at": "2026-10-17T13:30:32.674719Z",
+      "provider": "fixture",
+      "tier": "professional_platform",
+      "fetch_status": "ok",
+      "injection_flags": [],
+      "identity": {
+        "score": 0.25,
+        "level": "low",
+        "signals": [
+          "full name mentioned 1x",
+          "organisation mentioned",
+          "organisation near name"
+        ],
+        "conflicts": [
+          "name only appears in hedged or unverified attribution"
+        ]
+      },
+      "used": false,
+      "skip_reason": "identity not matched: name only appears in hedged or unverified attribution"
+    },
+    {
+      "id": "src_644719ca2901",
+      "url": "https://podcast.example/episodes/scaling-gpu-clouds",
+      "domain": "podcast.example",
+      "title": "Interview: Priya Raman of Nimbus Compute on scaling GPU clouds",
+      "published_at": "2026-08-15",
+      "retrieved_at": "2026-10-17T13:30:32.674719Z",
+      "provider": "fixture",
+      "tier": "general_web",
+      "fetch_status": "ok",
+      "injection_flags": [],
+      "identity": {
+        "score": 0.85,
+        "level": "high",
+        "signals": [
+          "full name mentioned 2x",
+          "page is about this name (title)",
+          "organisation mentioned",
+          "organisation near name"
+        ],
+        "conflicts": []
+      },
+      "used": true,
+      "skip_reason": null
+    },
+    {
+      "id": "src_6ed97b214789",
+      "url": "https://techblog.example/devcon-recap",
+      "domain": "techblog.example",
+      "title": "DevCon Bangalore recap",
+      "published_at": "2026-06-01",
+      "retrieved_at": "2026-10-17T13:30:32.675690Z",
+      "provider": "fixture",
+      "tier": "general_web",
+      "fetch_status": "ok",
+      "injection_flags": [
+        "hidden_text_removed:116",
+        "note to ai"
+      ],
+      "identity": {
+        "score": 0.7,
+        "level": "high",
+        "signals": [
+          "full name mentioned 2x",
+          "organisation mentioned",
+          "organisation near name"
+        ],
+        "conflicts": []
+      },
+      "used": true,
+      "skip_reason": null
+    },
+    {
+      "id": "src_c4c74f432651",
+      "url": "https://robots-blocked.example/priya-raman",
+      "domain": "robots-blocked.example",
+      "title": "Notes",
+      "published_at": "2026-04-01",
+      "retrieved_at": "2026-10-17T13:30:32.676724Z",
+      "provider": "fixture",
+      "tier": "general_web",
+      "fetch_status": "skipped: disallowed by robots.txt",
+      "injection_flags": [],
+      "identity": {
+        "score": 0.0,
+        "level": "low",
+        "signals": [],
+        "conflicts": []
+      },
+      "used": false,
+      "skip_reason": null
+    },
+    {
+      "id": "src_54b05ec84dd2",
+      "url": "https://gossip.example/priya-golf",
+      "domain": "gossip.example",
+      "title": "Tech execs on the green",
+      "published_at": "2026-01-10",
+      "retrieved_at": "2026-10-17T13:30:32.676724Z",
+      "provider": "fixture",
+      "tier": "general_web",
+      "fetch_status": "ok",
+      "injection_flags": [],
+      "identity": {
+        "score": 0.7,
+        "level": "high",
+        "signals": [
+          "full name mentioned 1x",
+          "organisation mentioned",
+          "organisation near name"
+        ],
+        "conflicts": []
+      },
+      "used": true,
+      "skip_reason": null
+    },
+    {
+      "id": "src_e2cec12834c2",
+      "url": "https://paywalled.example/priya-raman-profile",
+      "domain": "paywalled.example",
+      "title": "Subscriber profile",
+      "published_at": "2026-04-01",
+      "retrieved_at": "2026-10-17T13:30:32.676724Z",
+      "provider": "fixture",
+      "tier": "general_web",
+      "fetch_status": "skipped: access controlled (403)",
+      "injection_flags": [],
+      "identity": {
+        "score": 0.0,
+        "level": "low",
+        "signals": [],
+        "conflicts": []
+      },
+      "used": false,
+      "skip_reason": null
+    },
+    {
+      "id": "src_b2cb5021c77c",
+      "url": "https://chefstories.example/priya-raman-pastry",
+      "domain": "chefstories.example",
+      "title": "Meet Priya Raman, Chennai's croissant queen",
+      "published_at": "2025-11-01",
+      "retrieved_at": "2026-10-17T13:30:32.676724Z",
+      "provider": "fixture",
+      "tier": "general_web",
+      "fetch_status": "ok",
+      "injection_flags": [],
+      "identity": {
+        "score": 0.1,
+        "level": "low",
+        "signals": [
+          "full name mentioned 2x",
+          "page is about this name (title)"
+        ],
+        "conflicts": [
+          "name linked to 'Saffron Bakehouse'"
+        ]
+      },
+      "used": false,
+      "skip_reason": "identity not matched: name linked to 'Saffron Bakehouse'"
+    }
+  ],
+  "queries": [
+    {
+      "text": "\"Priya Raman\" \"Nimbus Compute\"",
+      "include_domains": [],
+      "purpose": "identity and current role",
+      "origin": "template"
+    },
+    {
+      "text": "\"Priya Raman\" \"Nimbus Compute\" (interview OR podcast OR keynote OR panel)",
+      "include_domains": [],
+      "purpose": "public appearances",
+      "origin": "template"
+    },
+    {
+      "text": "\"Priya Raman\" \"Nimbus Compute\" (conference OR summit OR speaker)",
+      "include_domains": [],
+      "purpose": "speaking engagements",
+      "origin": "template"
+    },
+    {
+      "text": "\"Priya Raman\" (article OR blog OR paper OR wrote)",
+      "include_domains": [],
+      "purpose": "publications",
+      "origin": "template"
+    },
+    {
+      "text": "\"Priya Raman\" ai infrastructure gpu capacity",
+      "include_domains": [],
+      "purpose": "views on meeting topics",
+      "origin": "template"
+    },
+    {
+      "text": "\"Priya Raman\"",
+      "include_domains": [
+        "nimbuscompute.example"
+      ],
+      "purpose": "official biography",
+      "origin": "template"
+    },
+    {
+      "text": "\"Nimbus Compute\" (announces OR launches OR raises)",
+      "include_domains": [],
+      "purpose": "company news",
+      "origin": "template"
+    }
+  ],
+  "warnings": [],
+  "usage": {
+    "search_calls": {
+      "fixture": 7
+    },
+    "pages_fetched": 12,
+    "llm_calls": 0,
+    "llm_input_tokens": 0,
+    "llm_output_tokens": 0,
+    "estimated_cost_usd": 0.0
+  }
+}

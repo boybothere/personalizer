@@ -1,0 +1,14 @@
+[
+  {"purpose": "operator test: exact phrase restricted to one domain",
+   "phrases": ["robots exclusion protocol"], "sites": ["rfc-editor.org"], "max_results": 5},
+  {"purpose": "operator test: path-restricted site (provider may only support domains)",
+   "terms": ["trafilatura"], "sites": ["github.com/adbar"], "max_results": 5},
+  {"purpose": "platform discovery test: discovery-only platform must yield leads, never fetches",
+   "phrases": ["National Geographic"], "sites": ["instagram.com"], "max_results": 5},
+  {"purpose": "freshness test: recent items only",
+   "phrases": ["Python 3.15"], "freshness_days": 30, "max_results": 5},
+  {"purpose": "OR-group test: provider may not support boolean OR",
+   "phrases": ["RFC 9309"], "any_of": ["crawler", "robots.txt"], "max_results": 5},
+  {"purpose": "publishing-platform test: Medium coverage",
+   "phrases": ["robots.txt"], "sites": ["medium.com"], "max_results": 5}
+]
