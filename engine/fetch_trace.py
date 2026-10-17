@@ -71,6 +71,9 @@ def render(t: dict) -> str:
             r = e["robots"]
             lines.append(f"  robots.txt: HTTP {r['http_status']} -> {r['result']}" + (f" ({r['failure_code']})" if r["failure_code"] else ""))
         for a in e.get("attempts", []):
+            if a["outcome"] == "skipped":
+                lines.append(f"  attempt {a['attempt_no']}: skipped (no request sent) {a['failure_code']} {a['detail'] or ''}".rstrip())
+                continue
             lines.append(f"  attempt {a['attempt_no']}: {a['outcome']:8} HTTP {a['http_status']} via {a['connected_ip']} "
                          f"{a['bytes']}B {a['elapsed_ms']}ms {a['failure_code'] or ''} {a['detail'] or ''}".rstrip())
         lines.append(f"  outcome: {e.get('outcome')}" + (f": {e['outcome_explanation']}" if e.get("outcome_explanation") else ""))

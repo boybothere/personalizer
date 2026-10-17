@@ -50,10 +50,16 @@ def test_live_retrieval_demonstrates_each_outcome():
     assert by_name["private"] == "URL_PRIVATE_ADDRESS"
     assert by_name["excluded"] == "URL_EXCLUDED_DOMAIN"
     assert by_name["robots_disallowed"] == "ROBOTS_DISALLOWED"
-    assert by_name["pdf"] == "UNSUPPORTED_CONTENT_TYPE"
+    assert by_name["pdf"] == "UNSUPPORTED_PDF"
     assert by_name["not_found"] == "HTTP_NOT_FOUND"
     m = metrics(conn, rid)
     assert m["leads"]["duplicate_leads"] == 1
     assert m["extraction"]["usable"] >= 3 and m["extraction"]["by_evidence_kind"].get("feed_entry", 0) >= 1
     assert m["fetch"]["attempts"] >= 6
     assert repo.get_run(conn, rid)["status"] == "completed"
+    # phase 4: every real request went to a pinned, public address (TLS verified on the hostname)
+    from engine.fetch.netpolicy import is_public_ip
+
+    ips = [r[0] for r in conn.execute("SELECT connected_ip FROM fetch_attempts WHERE run_id=? AND outcome!='skipped'",
+                                      (rid,))]
+    assert ips and all(ip and is_public_ip(ip) for ip in ips)

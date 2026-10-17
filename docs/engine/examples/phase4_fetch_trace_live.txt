@@ -1,0 +1,76 @@
+# LIVE fetch trace, Phase 4 (public, non-personal pages; keyless; nothing stored)
+# Command: python -m engine fetch-trace <urls>   Date: 2026-10-17   Network: India
+# 'via' = the pinned, policy-checked IP actually connected to; TLS verified against the hostname
+
+run: completed (all_work_processed)
+
+https://www.rfc-editor.org/rfc/rfc9309.html
+  policy: accepted
+  robots.txt: HTTP 200 -> parsed
+  attempt 1: success  HTTP 200 via 104.18.20.81 82367B 342ms
+  outcome: OK
+  document: usable, 10315 chars; title='RFC 9309: Robots Exclusion Protocol'; author='Martijn Koster'; lang=en; published=None (None); canonical=None; flags=[]
+
+https://en.wikipedia.org/wiki/Robots.txt
+  policy: accepted
+  robots.txt: HTTP 200 -> parsed
+  attempt 1: success  HTTP 200 via 103.102.166.224 326744B 500ms
+  outcome: OK
+  document: usable, 24139 chars; title='robots.txt - Wikipedia'; author='Contributors to Wikimedia projects'; lang=en; published=2002-10-09 (jsonld:datePublished); canonical=https://en.wikipedia.org/wiki/Robots.txt; flags=['invisible_unicode_removed', 'hidden_text_removed:325', 'living_document']
+
+https://en.wikipedia.org/w/index.php?title=Robots.txt&action=history
+  policy: accepted
+  robots.txt: HTTP 200 -> parsed
+  attempt 0: skipped (no request sent) ROBOTS_DISALLOWED disallowed for our user agent
+  outcome: ROBOTS_DISALLOWED: robots.txt disallows this URL for our user agent.
+
+https://example.com/
+  policy: accepted
+  robots.txt: HTTP 404 -> allow_all
+  attempt 1: success  HTTP 200 via 104.20.23.154 577B 93ms
+  outcome: OK
+  document: NOT usable: TEXT_TOO_SHORT: The extracted main text is shorter than the usable minimum.
+
+https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf
+  policy: accepted
+  robots.txt: HTTP 200 -> parsed
+  attempt 1: failure  HTTP 200 via 104.18.22.19 0B 109ms UNSUPPORTED_PDF application/pdf (not downloaded)
+  outcome: UNSUPPORTED_PDF: The resource is a PDF; PDF text extraction is not supported in this phase (not downloaded).
+
+https://httpbin.org/status/404
+  policy: accepted
+  robots.txt: HTTP 200 -> parsed
+  attempt 1: failure  HTTP 404 via 3.225.83.162 0B 1047ms HTTP_NOT_FOUND HTTP 404
+  outcome: HTTP_NOT_FOUND: The page does not exist (404/410).
+
+https://httpbin.org/redirect/2
+  policy: accepted
+  robots.txt: HTTP 200 -> parsed
+  attempt 1: redirect HTTP 302 via 3.225.83.162 0B 1030ms  -> https://httpbin.org/relative-redirect/1
+  attempt 2: redirect HTTP 302 via 3.225.83.162 0B 1078ms  -> https://httpbin.org/get
+  attempt 3: failure  HTTP 200 via 3.225.83.162 0B 1077ms UNSUPPORTED_CONTENT_TYPE application/json
+  outcome: UNSUPPORTED_CONTENT_TYPE: The content type is not supported in this phase (supported: HTML, XHTML, RSS/Atom, plain text).
+
+https://medium.com/gumgum-tech/respecting-robots-exclusion-protocol-or-robots-txt-a7e3e4a3bb2f
+  policy: accepted
+  robots.txt: HTTP 200 -> parsed
+  attempt 1: failure  HTTP 403 via 162.159.152.4 5380B 77ms ACCESS_CHALLENGE HTTP 403; bot-protection marker: /cdn-cgi/challenge-platform/
+  outcome: ACCESS_CHALLENGE: The site served a bot-protection or captcha interstitial. This is an access control: it is never retried, solved or bypassed (no provider-text fallback).
+
+https://www.instagram.com/natgeo/
+  policy: rejected URL_PLATFORM_DISCOVERY_ONLY: The platform permits no automated page access and has no enabled content route; the URL is kept as a lead only.
+  outcome: URL_PLATFORM_DISCOVERY_ONLY
+
+http://127.0.0.1:8080/
+  policy: rejected URL_PRIVATE_ADDRESS: The host resolves to a private, loopback or otherwise non-public address.
+  outcome: URL_PRIVATE_ADDRESS
+
+http://2130706433/
+  policy: rejected URL_NONCANONICAL_HOST: The host is a non-canonical numeric address (decimal, hex, octal or shorthand IPv4); resolvers disagree on these, so they are never requested.
+  outcome: URL_NONCANONICAL_HOST
+
+http://[::ffff:127.0.0.1]/
+  policy: rejected URL_PRIVATE_ADDRESS: The host resolves to a private, loopback or otherwise non-public address.
+  outcome: URL_PRIVATE_ADDRESS
+
+summary: {"fetch_attempts": 9, "http_2xx": 5, "urls_retrieved": 3, "usable_documents": 2, "usable_rate_of_retrieved_pages": 0.667, "metadata_coverage_of_usable": {"title": 2, "author": 2, "language": 2, "canonical_link": 1, "published_at": 1, "site_name": 2}, "blocked_or_inaccessible": {"URL_NONCANONICAL_HOST": 1, "URL_PLATFORM_DISCOVERY_ONLY": 1, "ACCESS_CHALLENGE": 1, "ROBOTS_DISALLOWED": 1}, "extraction_failures": {"TEXT_TOO_SHORT": 1}}
