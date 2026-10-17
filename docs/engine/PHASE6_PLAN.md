@@ -1,8 +1,23 @@
 # Phase 6 plan: evidence-gated claim extraction
 
 **Date:** 2026-10-18
-**Status:** **Proposed, for review. No Phase 6 code has been written.**
+**Status:** **Approved with conditions (2026-10-18).** This revision adds those conditions (§0.1) before implementation.
 **Baseline:** `e4199b5` (Phase 5, pushed)
+
+## 0.1 Approval conditions and where they are handled
+
+| Condition | Where in this plan |
+|---|---|
+| P6-Q1 Origin groups and claim statuses in Phase 6 | §2.2, §2.5 |
+| P6-Q2 Evidence sentences kept 7 days, claim records 30 days. Expiry verified across database storage, logs, caches, exports and backups. The SQLite/WAL implications and the mechanism are documented. | **§2.6 and §2.6.1** (every persistence path, with the mechanism and test for each) |
+| P6-Q3 Third-party-reported preferences only as explicitly tentative, attributed reports; never presented as the subject's confirmed preference | §2.3, §2.5 (`reported` mode is hard-capped at `tentative`; the output names who reported it) |
+| P6-Q4 `activity_pattern` only from distinct, adequately evidenced events; labelled as recurring activity | §2.3.1 |
+| P6-Q5 `identity-rules-2`: every changed Phase 5 decision is reported; Phase 5 labelled cases stay as regression tests | §2.1 (comparison report: rules-1 vs rules-2 on every case) |
+| S1 Ambiguous independence is treated conservatively | §2.2 (when unsure, sources are merged) |
+| S2 Privacy filtering tested against the real database file and every persistence path | §2.7.1 |
+| S3 Identity confidence kept separate from claim confidence; what happens to dependent claims when identity changes | §2.4.1 |
+| S4 Tests for conflicting, stale, undated, negated, hypothetical, sarcastic, quoted and third-party statements; no claims of semantic understanding | §4.1 (G4, G6), §2.3 (stated limits of the rules) |
+| S5 Synthetic precision and recall reported only as agreement with the authored labels | §4.2 |
 
 ## 0. Scope and numbering
 
@@ -49,21 +64,32 @@ Matching is by **tokens, not substrings**. Both sides are normalised: case folde
 | `different` | Any extra or different distinctive token | "Nimbus Compute Bank", "Nimbus Computers India" |
 
 - Only `exact` and `alias` count as the target.
-- `partial` is neither target nor namesake. It is recorded as an `org_partial` signal and makes the mention `ambiguous` at most.
+- `partial` is neither target nor namesake. It is recorded as an `org_partial` signal and makes the mention `ambiguous` at most. Extra tokens that are only descriptors ("Labs", "Technologies", "India", "Group", …) also give `partial`: "Nimbus Compute Labs" *may* be the same company, so it is unclear, not a namesake.
 - `different` is another organisation.
+- Spans are cleaned before matching: leading function words ("At", "The"), possessives, and trailing titles or the subject's own name ("Nimbus Compute CTO Priya Raman") are removed.
+
+**Change report (P6-Q5):** a script runs every Phase 5 labelled case and every new organisation case under both `identity-rules-1` (the code as of `e4199b5`) and `identity-rules-2`. It lists every document or subject decision that changed. The list goes into PHASE6_RESULTS.md. The Phase 5 cases stay in `test_identity.py` with their labels. If a label must change, the change and the reason are reported.
 - The "organisation present in the sentence" check uses the same matcher with word boundaries.
 - Phase 5 cases are re-run under `identity-rules-2`, and re-resolution supersedes `identity-rules-1` decisions (D10.6).
 - Optional input: `organization_aliases` (for example a former name or a brand).
 
 ### 2.2 Origin groups (`engine/origins.py`; fixes P2, also feeds identity)
 
-Documents in a run are joined into **origin groups** using union-find. Each link records why it was made:
+Documents in a run are joined into **origin groups** using union-find. Each link records why it was made.
+
+**Conservative by design (S1):** whenever independence is uncertain, documents are **merged**. Over-merging can only lower corroboration, which makes claims more tentative. Under-merging would inflate it.
 
 1. `duplicate_of` (existing simhash or identical text).
-2. Same `canonical_link`, or a cross-domain `rel=canonical` pointing at another document's URL.
-3. JSON-LD `isBasedOn` / `sameAs` for the article, or syndication markers in the text ("originally published", "first appeared on", "republished with permission", "(PTI)", "(ANI)", "(Reuters)", "via IANS", …). Documents with the same agency marker and the same dateline day are grouped.
-4. **Shared passage:** the two documents share at least one 12-word shingle outside boilerplate, or 30% or more of the shorter document's 5-word shingles. This catches a press release rewritten by several outlets.
-5. A press-release wire host (businesswire, prnewswire, globenewswire, …) links to every document that shares a passage with it.
+2. Same `canonical_link`, or a `rel=canonical` / JSON-LD `isBasedOn` pointing at another document's URL.
+3. **Same site:** same registrable domain (two pages on one site are one source).
+4. **Same byline:** the same author name (≥ 2 words) on different sites (one journalist, one origin).
+5. **News agency:** the same agency marker ("(PTI)", "(ANI)", "(IANS)", "(Reuters)", "(AP)", "(AFP)", "(UNI)"). All documents from one agency form one origin.
+6. **Press-release distribution:** wire hosts (businesswire, prnewswire, globenewswire, …) or wire markers in the text. All such documents form one origin.
+7. **Shared passage:** a shared 12-word sequence, or **≥ 15 %** of the shorter document's 5-word shingles. (The threshold is lowered from the earlier 30 % proposal to be conservative.)
+8. **Shared quote:** the same quoted passage (≥ 8 words, normalised) in two documents. One interview quoted by several outlets is one origin.
+9. "Originally published on X" where X names another document's site → merged.
+
+The last two (7–8) can merge sites that share boilerplate, such as cookie banners. That is accepted: it errs towards fewer independent sources.
 
 Corroboration, for claims and for identity's "≥ 2 independent" rule (`identity-rules-2`), then counts **origin groups, not URLs or domains**. Same-domain pages remain one source for identity, as in Phase 5.
 
@@ -96,8 +122,25 @@ Rejected or downgraded grammar (D6.3) is kept with its reason, never promoted:
 | Question ("Do I like…?") or conditional ("if I liked…") | `rejected` |
 | Deterministic sarcasm markers ("/s", "yeah right", "said no one ever", "😒", or scare quotes around the object) | `rejected` |
 | The subject quoting someone else ("As my mentor says, 'I love chaos'") or a retweet / repost marker | `rejected`: not the subject's statement |
-| Third party reports a preference ("Priya loves jazz, her colleague said") | Kept as `attribution_mode = reported`, **capped at `tentative`** (P6-Q3) |
-| Any construction outside the grammar | `insufficient_evidence` (`unverified_inference`) or dropped, with the reason |
+| Third party reports a preference ("Priya loves jazz, her colleague said"), or the page's author asserts it in the third person | Kept as `attribution_mode = reported`, **hard-capped at `tentative`** (P6-Q3). No amount of corroboration lifts it. The claim is labelled "reported by <site> (not the subject's own statement)". |
+| Any construction outside the grammar, or an unclear object ("I love it", "I love this") | `insufficient_evidence` (`unverified_inference`) or dropped, with the reason |
+
+**What the rules can and cannot establish (S4).** They match surface grammar: who the grammatical subject is, first-person verbs, negators, modal verbs, question marks, quotation marks, and a fixed list of sarcasm markers. They do **not** understand meaning:
+- unmarked sarcasm, irony, jokes and context ("I love Monday meetings" said dryly) are read literally;
+- coreference beyond "the next sentence starts with she/he/they" is not resolved;
+- implied preferences ("I spend every weekend on the trails") are not recognised.
+
+These limits are reported with the results and are not described as understanding.
+
+#### 2.3.1 `activity_pattern` (P6-Q4)
+
+A pattern is created only when **all** of the following hold:
+- **≥ 3 distinct events** of the same activity class (for example taking part in running events, or speaking at conferences);
+- **each event adequately evidenced**: an activity claim from a document that passed the identity gate, with an **explicit event date** (a year or month-year in the sentence, or the document's own publication date), and not flagged `date_conflict`;
+- events count as distinct only with **different event dates and different origin groups**, so one event reported three times stays one event;
+- events are spread over **≥ 2 calendar years**.
+
+The claim text is always "recurring activity: <class>, not a stated preference". Its status follows §2.5. It never feeds a preference.
 
 ### 2.4 Identity gate (fixes P1)
 
@@ -119,6 +162,25 @@ Each claim stores the `identity_resolution_id` it was gated on. When identity is
 - claims that now pass are created.
 
 Nothing is deleted silently.
+
+#### 2.4.1 Identity confidence vs claim confidence (S3)
+
+The two are **never combined into one number**:
+- **Identity** (Phase 5): the subject status, plus each document's identity status. It answers "is this page about this person?"
+- **Claim** (Phase 6): status, flags and confidence. It answers "given that the page is about this person, how well supported is this statement?"
+
+Each claim stores `identity_status` (the subject status it was gated on). Each evidence row stores `document_identity_status`. Output shows them side by side.
+
+When identity changes, dependent claims change as follows. This is the **dependent-claims policy**:
+
+| Identity change | Effect on claims |
+|---|---|
+| Subject goes from resolved to unresolved (`possible`, `conflicting`, `insufficient_evidence`) | **All** active claims superseded (`identity_changed`). None are shown. |
+| A document leaves the gate (for example an override marks it `rejected`) | Every claim with evidence from that document is superseded. If its text is still retained, the claims are re-extracted from the remaining documents, so a claim that loses one of two sources is recomputed (for example, falling to `tentative`). |
+| A document enters the gate, or the subject becomes resolved | Claims are extracted from it **if its text is still retained**. If the text has expired (> 7 days), nothing can be extracted, and the run reports `claims_incomplete: text_expired` instead of inventing claims. |
+| Rule-version change, no identity change | Full recomputation with reason `recomputed` (needs retained text; otherwise only the supersede steps above apply) |
+
+Superseded claims keep their rows (audit) until the run expires. Their evidence text expires on the normal 7-day schedule.
 
 ### 2.5 Claim status, flags and confidence (fixes P5 and P6)
 
@@ -143,8 +205,8 @@ Contradictions that the dates **do** order are not merged away. The newer statem
 | `date_conflict` | The document's date sources disagree (D3.4) | `tentative` |
 | `stale` | Newest support is older than 730 days (`claims.stale_after_days`, configurable) | `tentative` |
 | `single_origin` | One origin group | `tentative` unless the claim is `verified` |
-| `reported_not_authored` | Only third-party reports | `tentative` |
-| `snippet_only` | Search-snippet evidence only | `tentative` (D3.2) |
+| `reported_not_authored` | Preference claims with only third-party reports (activities and associations are normally reported in the third person and are not capped for this) | `tentative`, **hard cap** |
+| `provider_text` | Evidence came from provider-supplied page text (fallback, disabled by default) | `tentative` |
 | `historical_identity` | The source ties the subject to the organisation only in the past tense | none (shown) |
 | `superseded_by_newer` | A newer, contradicting statement exists | `tentative` |
 | `contradicted` | Unordered contradiction | → `conflicting` |
@@ -173,6 +235,23 @@ A test checks that every `evidence_text` is an exact substring of its document t
 
 **Retention (P6-Q2):** `evidence_text` is page text, so it expires with the document text after **7 days** (D4.4). After that it is set to null and the hash and offsets are kept. Claim structure (type, object, status, flags) lives as long as the run (30 days). Deleting a subject or run deletes its claims.
 
+#### 2.6.1 Every persistence path, and how expiry is met
+
+| Path | What could hold evidence text | Mechanism | Verified by |
+|---|---|---|---|
+| Main database file | `claim_evidence.evidence_text`, `documents.text`, snippets | `purge()` sets the columns to NULL (and deletes expired runs). `PRAGMA secure_delete = ON` makes SQLite overwrite freed cell content and freed pages with zeros instead of leaving it in free space. | Test: purge at +8 days, then scan the **raw bytes** of the `.db` file for the sentences |
+| WAL file (`-wal`) | Earlier page images: after an UPDATE, the old page version stays in the WAL until a checkpoint copies the new version into the main file | `purge()` runs `PRAGMA wal_checkpoint(TRUNCATE)` and **now checks the result**. If a reader blocks it (`busy`), purge reports `checkpoint_complete: false`, and the text must be treated as still present until the next purge succeeds. | Test: raw-byte scan of `-wal` after purge; test that `checkpoint_complete` is reported |
+| Shared-memory index (`-shm`) | Only the WAL index (page numbers and hashes), no row content | None needed | Test: raw-byte scan |
+| SQLite temporary files (sorting, temp tables, statement journals) | Could spill row content to OS temp files | **New:** `PRAGMA temp_store = MEMORY` on every engine connection, so these never touch disk | Test: the pragma is set; no new files appear in the database directory or the temp directory during a run |
+| Rollback journal | Not used in WAL mode | n/a | |
+| Trace events, metrics, run summary | Could copy text if written carelessly | Claim and filter code write **counts, ids and reason codes only**, never sentences | Test: the trace and metrics JSON contain none of the evidence sentences |
+| Logs | The engine writes no log files (no `logging` handlers). The CLI prints to the terminal. | No log files to expire | Test: no `logging` handler or file writer in `engine/` |
+| In-process caches | robots.txt cache, HTTP client | In memory, per run; gone when the process ends. No disk cache. | Code review (no disk cache exists) |
+| Exports (`summary`, `claims` CLI, `--json`) | Produced on demand **from the database**, so after expiry they cannot contain expired text | Exports print to stdout. The engine writes no export files. | Test: `claims` output after purge shows null evidence |
+| Backups | The engine makes **no** backups. `db upgrade` does not copy. | **Outside the engine:** user-made copies, OS backup or sync (File History, OneDrive) and pytest's temporary folders (synthetic data only; pytest keeps the last 3). Requirement for production: exclude `data/` from backup/sync, or apply the same 7/30-day retention to backups. **This cannot be enforced or verified by the engine.** | Documented as a limitation |
+| When purge runs | Expired text stays until the next purge | Purge runs before every run (existing). Without runs, `python -m engine purge` must be scheduled daily (for example Windows Task Scheduler). Not automated in this phase. | Documented as a limitation |
+| Physical storage | SSD wear levelling and filesystem snapshots may keep old blocks | Not controllable from SQLite | Documented as a limitation |
+
 ### 2.7 Out-of-scope content filter (`engine/claims/scope.py`; fixes P7; D4.1–D4.3)
 
 This filter runs **before** a claim or any evidence text is stored. A sentence matching it is dropped entirely: no claim, no evidence text, no topic. Only a count by category goes to the trace (for example `dropped_out_of_scope: {health: 1, whereabouts: 2}`).
@@ -188,6 +267,18 @@ This filter runs **before** a claim or any evidence text is stored. A sentence m
 **Allowed:** a **past, dated** statement by the person about public professional travel, recorded as an `activity` ("spoke at PyCon India, Hyderabad, 2024"). If the date is missing or ambiguous (now vs past), the sentence is dropped.
 
 The filter is lexical and deliberately over-inclusive. A false drop costs a missed claim, while a false keep would be a privacy breach.
+
+#### 2.7.1 Removing out-of-scope text from storage (S2)
+
+Not storing a claim is not enough: the page text itself sits in `documents.text` for 7 days, and snippets sit in `leads` and `search_results`.
+
+So after identity resolution and claim extraction, a **redaction step** runs over **every usable document in the run**, including namesake pages. Each out-of-scope sentence in `documents.text` is overwritten with a placeholder of the **same length**, so offsets stay valid. `documents.title`, `leads.snippet`, `search_results.snippet` and `search_results.title` get the same treatment. A WAL checkpoint follows.
+
+`text_sha256` and `simhash` still describe the original text, and that is recorded.
+
+The privacy test (G7) runs a full research run on a **file** database, then scans the raw bytes of `.db`, `-wal` and `-shm`, plus the trace, metrics and CLI outputs. It checks that no out-of-scope sentence remains, and that no new files appeared in the database directory.
+
+**Limitation:** during the run, before redaction, the text is in memory and briefly in the database and WAL. The filter is lexical, so out-of-scope sentences it does not recognise stay until the normal 7-day expiry.
 
 ## 3. Schema (migration 0006 `claims`, reversible; tested on a copy only)
 
@@ -215,11 +306,14 @@ CREATE TABLE claims (
     flags_json TEXT NOT NULL,
     reasons_json TEXT NOT NULL,
     origin_groups INTEGER NOT NULL,
+    identity_status TEXT NOT NULL,          -- subject identity status at gating (kept separate from confidence)
+    gate_signature TEXT NOT NULL,           -- hash of subject status + gated document ids (detects identity changes)
+    attributed_to TEXT,                     -- for reported claims: who reported it (site/registrable domain)
     newest_published_at TEXT,
     rule_version TEXT NOT NULL,
     created_at TEXT NOT NULL,
     superseded_by INTEGER,
-    supersede_reason TEXT                    -- identity_changed, rules_changed, user
+    supersede_reason TEXT                    -- identity_changed, recomputed
 );
 CREATE TABLE claim_evidence (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -233,6 +327,8 @@ CREATE TABLE claim_evidence (
     published_source TEXT,
     date_conflict INTEGER NOT NULL DEFAULT 0,
     origin_group TEXT NOT NULL,
+    document_identity_status TEXT NOT NULL,
+    event_date TEXT,                         -- explicit year/month in the sentence, if any
     subject_link TEXT NOT NULL CHECK (subject_link IN ('subject_of_sentence', 'authored_page', 'attributed_quote')),
     evidence_text TEXT,                      -- nulled at text expiry
     evidence_sha256 TEXT NOT NULL,
@@ -285,7 +381,7 @@ Target size is **≥ 60 cases and ≥ 200 labelled sentences**, covering:
 
 ### 4.2 Measures on the labelled set
 
-These are **reported as synthetic rule-consistency, never as accuracy.**
+These are **reported as synthetic rule-consistency, never as accuracy (S5).** Precision and recall here mean only "agreement between the rules and the labels written by the same author". They are labelled **"agreement with authored labels"** wherever they appear.
 
 | Measure | Required |
 |---|---|
@@ -349,6 +445,11 @@ Synthetic results show that the rules do what they say. They do not show that th
 | C10 | Migration 0006 is reversible and tested on a copy only; originals unchanged; retention covers evidence text | Migration and retention tests; checksums |
 | C11 | Synthetic results are labelled as synthetic; the real-world validation requirements are documented, not claimed | PHASE6_RESULTS.md |
 | C12 | All suites pass; no LLM calls, keys, paid usage, live-person research or fallback | Test runs |
+| C13 | Retention verified across every persistence path in §2.6.1 (database file, WAL, shm, temp files, trace, exports); limitations for backups and physical storage documented | Byte-scan tests; PHASE6_RESULTS.md |
+| C14 | Out-of-scope sentences are removed from stored page text and snippets after the run (S2) | G7 file-level scan |
+| C15 | Identity and claim confidence are stored and shown separately; dependent-claims policy (§2.4.1) is tested | G1 tests |
+| C16 | `identity-rules-2` change report lists every changed Phase 5 decision; Phase 5 cases are still regression tests | Report and `test_identity.py` |
+| C17 | `activity_pattern` only from ≥ 3 distinct dated events in ≥ 3 origin groups over ≥ 2 years | G4 pattern cases, including a negative case (one event reported 3 times) |
 
 ## 6. Decisions needed before implementation
 
