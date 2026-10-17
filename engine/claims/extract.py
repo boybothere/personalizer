@@ -38,6 +38,8 @@ DETERMINERS = {"the", "a", "an", "my", "our", "all", "any", "some", "to", "her",
 _OBJ_END = re.compile(r"[,.;:!?()\"“”/]|\s(?:and|but|because|since|when|while|which|although|though|"
                       r"so|with my|whenever|every|on weekends|these days)\b|"
                       rf"\s(?:in|on|during|back in)\s+(?:(?:{_MONTHS})\.?\s+)?(?:19|20)\d\d\b")
+TRAILING_FILLER = re.compile(r"(?:\s+(?:too|as well|also|again|for years|for a long time|these days|now|lately|"
+                             r"anymore|any more|a lot|so much|very much|last spring|last year|this year))+$", re.I)
 RUN_WORDS = re.compile(r"\b(marathon|half[- ]marathon|10k|5k|21k|42k|ultra\w*|race|trail run|triathlon|ironman|"
                        r"duathlon)\b", re.I)
 
@@ -148,6 +150,7 @@ def _object(rest: str) -> tuple[str, str] | None:
     if not words:
         return None
     text = " ".join(words[:8])
+    text = TRAILING_FILLER.sub("", text).strip() or text  # "the Open Compute Project too" -> same object
     return text, re.sub(r"[^\w\s\-]", "", text.lower()).strip()
 
 

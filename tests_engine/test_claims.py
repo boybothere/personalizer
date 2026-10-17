@@ -165,6 +165,15 @@ def test_reported_preferences_are_always_tentative_and_attributed():
     assert seen >= 5
 
 
+def test_copies_collapse_into_one_claim_with_one_origin():
+    case = next(c for c in CASES if c["id"] == "g2_agency_story_three_sites")
+    conn, rid, _, _ = run_case(case)
+    claims = [c for c in _claims(conn, rid) if c["claim_type"] == "association"]
+    assert len(claims) == 1 and claims[0]["origin_groups"] == 1 and claims[0]["status"] == "tentative"
+    sites = {e[0] for e in conn.execute("SELECT source_url FROM claim_evidence WHERE claim_id=?", (claims[0]["id"],))}
+    assert len(sites) == 3  # three sites, one origin: no inflated corroboration
+
+
 def test_activity_patterns_are_labelled_and_need_distinct_dated_events():
     found = {}
     for case, conn, rid, _, _ in _all_runs():
