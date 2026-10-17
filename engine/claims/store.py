@@ -13,7 +13,7 @@ import json
 import sqlite3
 from datetime import date
 
-from .. import origins
+from .. import origins, privacy
 from ..identity.evidence import Subject
 from ..store import repo
 from .extract import RULES, DocInput, extract_doc
@@ -123,7 +123,8 @@ def update_claims(conn: sqlite3.Connection, run_id: str, subject: Subject, today
             " attribution_mode, attributed_to, status, confidence, flags_json, reasons_json, origin_groups,"
             " newest_date, identity_status, gate_signature, rule_version, created_at)"
             " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-            (run_id, res["id"], cl.claim_type, cl.predicate, cl.object_text, cl.object_key, cl.polarity, cl.mode,
+            (run_id, res["id"], cl.claim_type, cl.predicate, privacy.safe_label(cl.object_text),
+             privacy.safe_label(cl.object_key), cl.polarity, cl.mode,
              cl.attributed_to, cl.status, cl.confidence, json.dumps(cl.flags), json.dumps(cl.reasons),
              cl.origin_groups, cl.newest_date, res["status"], signature, RULES, now))
         for e in cl.evidence:

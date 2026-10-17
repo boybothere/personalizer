@@ -31,7 +31,10 @@ SENSITIVE: dict[str, list[re.Pattern]] = {
         r"tumou?r|diabet\w*|asthma|depress\w*|anxiety|panic attacks?|therap\w*|counsell?ing|psychiatr\w*|mental|"
         r"adhd|autis\w*|dyslexi\w*|surgery|surgeon|hospital\w*|clinic\w*|doctors?|injur\w*|recover\w*|rehab\w*|"
         r"addict\w*|sober\w*|sobriety|alcoholi\w*|pregnan\w*|ivf|miscarriage|disabilit\w*|disabled|wheelchair|"
-        r"blind|deaf|hiv|covid|vaccin\w*|weight loss|dieting|insomnia|burnout|chronic|cardiac|heart attack)\b",
+        r"blind|deaf|hiv|covid|vaccin\w*|weight loss|dieting|insomnia|burnout|chronic|cardiac|heart attack|"
+        r"narcotic\w*|alcoholics anonymous|narcotics anonymous|anonymous meetings?|(aa|na) meetings?|"
+        r"support groups?|twelve[- ]step|12[- ]step|de-?addiction|detox\w*|substance (use|abuse)|"
+        r"overdos\w*|relapse\w*)\b",
         _I)],
     "sexuality": [re.compile(
         r"\b(gay|lesbian|queer|bisexual|lgbt\w*|transgender|trans (woman|man)|sexual\w*|pride parade|"
@@ -99,8 +102,11 @@ def _past_year(sentence: str, today: date) -> bool:
     return bool(years) and max(years) < today.year
 
 
-def classify(sentence: str, today: date, location: str | None = None) -> str | None:
-    """Return the out-of-scope category of a sentence, or None if it may be processed."""
+def classify(sentence: str, today: date, location: str | None = None, storage_only: bool = False) -> str | None:
+    """Return the out-of-scope category of a sentence, or None if it may be processed.
+
+    storage_only=True: only the categories that must never be persisted (sensitive traits, residence, current or
+    upcoming whereabouts). The claim-level rules for undated travel and undated places are skipped."""
     for cat, patterns in SENSITIVE.items():
         if any(p.search(sentence) for p in patterns):
             return cat
@@ -113,6 +119,8 @@ def classify(sentence: str, today: date, location: str | None = None) -> str | N
         bool(COUNTRY_CODES.search(sentence))
     if TIME_NOW.search(sentence) and (PRESENCE.search(sentence) or named_place):
         return "whereabouts"  # current or upcoming presence somewhere
+    if storage_only:
+        return None
     if TRAVEL.search(sentence) and (named_place or TRAVEL_PLACE.search(sentence)) and not _past_year(sentence, today):
         return "travel_undated"  # D4.2: travel kept only as a dated past statement
     if named_place and not _past_year(sentence, today):
@@ -130,11 +138,12 @@ def _blank(segment: str) -> str:
     return "·" * len(segment)
 
 
-def redact_text(text: str, today: date, location: str | None = None) -> tuple[str, dict[str, int]]:
+def redact_text(text: str, today: date, location: str | None = None,
+                storage_only: bool = False) -> tuple[str, dict[str, int]]:
     counts: dict[str, int] = {}
     out = text
     for a, b in sentence_spans(text):
-        cat = classify(text[a:b], today, location)
+        cat = classify(text[a:b], today, location, storage_only)
         if cat:
             counts[cat] = counts.get(cat, 0) + 1
             out = out[:a] + _blank(out[a:b]) + out[b:]

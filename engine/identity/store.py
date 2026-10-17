@@ -6,7 +6,7 @@ import json
 import sqlite3
 from datetime import date
 
-from .. import origins
+from .. import origins, privacy
 from ..store import repo
 from .evidence import Subject, extract
 from .resolver import Resolution, profile_key, resolve
@@ -55,13 +55,32 @@ def resolve_run(conn: sqlite3.Connection, run_id: str, subject: Subject, today: 
     return save(conn, run_id, result)
 
 
+def _candidate(key: str) -> str:
+    kind, _, label = key.partition(":")
+    return f"{kind}:{privacy.safe_label(label)}" if label else key
+
+
+def _signals(sig: dict) -> dict:
+    out = dict(sig)
+    for k in ("other_orgs", "partial_orgs"):
+        if out.get(k):
+            out[k] = [privacy.safe_label(o) for o in out[k]]
+    if out.get("occupation"):
+        out["occupation"] = privacy.safe_label(out["occupation"])
+    return out
+
+
 def save(conn: sqlite3.Connection, run_id: str, r: Resolution) -> int:
+    """Write boundary: organisation and occupation labels taken from page text are withheld when out of scope
+    (for example a support group named as a namesake's affiliation); URLs in reasons are scrubbed."""
     now = repo.iso()
+    explanation = [privacy.safe_statement(x) for x in r.explanation]
+    details = {"candidates": {_candidate(k): v for k, v in r.candidates.items()},
+               "conflicts": [privacy.safe_statement(x) for x in r.conflicts]}
     cur = conn.execute(
         "INSERT INTO identity_resolutions (run_id, status, resolved, explanation_json, details_json, rule_version,"
         " created_at) VALUES (?,?,?,?,?,?,?)",
-        (run_id, r.status, int(r.resolved), json.dumps(r.explanation),
-         json.dumps({"candidates": r.candidates, "conflicts": r.conflicts}), r.rule_version, now))
+        (run_id, r.status, int(r.resolved), json.dumps(explanation), json.dumps(details), r.rule_version, now))
     rid = cur.lastrowid
     conn.execute("UPDATE identity_resolutions SET superseded_by=? WHERE run_id=? AND id<>? AND superseded_by IS NULL",
                  (rid, run_id, rid))
@@ -72,15 +91,17 @@ def save(conn: sqlite3.Connection, run_id: str, r: Resolution) -> int:
             continue  # the active user decision row already exists and stays authoritative
         conn.execute("INSERT INTO identity_decisions (run_id, resolution_id, target_type, target_ref, candidate_key,"
                      " status, signals_json, reasons_json, decided_by, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
-                     (run_id, rid, "document", d.doc_id, d.candidate, d.status, json.dumps(d.signals, default=str),
-                      json.dumps(d.reasons), "rules", now))
+                     (run_id, rid, "document", d.doc_id, _candidate(d.candidate), d.status,
+                      json.dumps(_signals(d.signals), default=str),
+                      json.dumps([privacy.safe_statement(x) for x in d.reasons]), "rules", now))
     for p in r.profiles:
         conn.execute("INSERT INTO identity_decisions (run_id, resolution_id, target_type, target_ref, candidate_key,"
                      " status, signals_json, reasons_json, decided_by, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
-                     (run_id, rid, "profile", p.url, f"{p.platform}/{p.handle}", p.status,
-                      json.dumps({"sources": p.sources}), json.dumps(p.reasons), "rules", now))
+                     (run_id, rid, "profile", privacy.safe_url(p.url), f"{p.platform}/{p.handle}", p.status,
+                      json.dumps({"sources": [privacy.safe_url(s) for s in p.sources]}),
+                      json.dumps([privacy.safe_statement(x) for x in p.reasons]), "rules", now))
     repo.trace(conn, run_id, "identity", "resolved", ref_type="identity_resolution", ref_id=rid, reason=r.status,
-               data={"resolved": r.resolved, "explanation": r.explanation[:6]})
+               data={"resolved": r.resolved, "explanation": explanation[:6]})
     return rid
 
 

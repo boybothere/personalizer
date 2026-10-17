@@ -362,10 +362,10 @@ def test_full_research_run_redacts_pages_and_snippets(tmp_path):
     assert {"origin_groups", "claims", "privacy_redaction"} <= set(m["time_by_stage_s"])
     red = json.loads(conn.execute("SELECT data_json FROM trace_events WHERE run_id=? AND stage='privacy_redaction'",
                                   (rid,)).fetchone()[0])
-    assert red["documents_redacted"] >= 1 and red["checkpoint_complete"] is True
-    # page sentences mention a husband and a wedding (family is checked first); the snippet mentions a hospital
-    assert set(red["sentences_by_category"]) == {"family", "health"} and \
-        sum(red["sentences_by_category"].values()) >= 3
+    assert red["checkpoint_complete"] is True
+    # the page sentences (family) and the snippet (health) were already filtered at the write boundary, so the
+    # end-of-run pass finds none of them left (corrective pass: write-boundary filtering)
+    assert not {"family", "health"} & set(red["sentences_by_category"])
     assert m["claims"]["by_type"].get("association") == 1  # the in-scope sentence still yields its claim
     conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
     assert _scan(tmp_path, sensitive + [snippet]) == []

@@ -8,6 +8,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 from uuid import uuid4
 
+from .. import privacy
+
 
 def now() -> datetime:
     return datetime.now(timezone.utc)
@@ -41,7 +43,7 @@ def create_run(conn: sqlite3.Connection, kind: str, input_data: dict, config: di
     conn.execute(
         "INSERT INTO runs (id, subject_id, kind, status, input_json, config_json, created_at, started_at, expires_at)"
         " VALUES (?, ?, ?, 'running', ?, ?, ?, ?, ?)",
-        (rid, subject_id, kind, _json(input_data), _json(config), iso(created), iso(created),
+        (rid, subject_id, kind, _json(privacy.scrub_obj(input_data)), _json(config), iso(created), iso(created),
          iso(created + timedelta(days=run_days))),
     )
     return rid
@@ -89,7 +91,8 @@ def trace(conn: sqlite3.Connection, run_id: str, stage: str, action: str, *, ref
     conn.execute(
         "INSERT INTO trace_events (run_id, at, stage, action, ref_type, ref_id, reason, data_json)"
         " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        (run_id, iso(), stage, action, ref_type, None if ref_id is None else str(ref_id), reason, _json(data)),
+        (run_id, iso(), stage, action, ref_type, None if ref_id is None else privacy.scrub_urls(str(ref_id)),
+         privacy.scrub_urls(reason), _json(privacy.scrub_obj(data))),
     )
 
 
@@ -103,8 +106,16 @@ def add_provider_usage(conn: sqlite3.Connection, run_id: str, provider: str, ope
 
 
 def add_lead(conn: sqlite3.Connection, run_id: str, url: str, lead_kind: str, **fields) -> int:
+    # write boundary: out-of-scope URLs are withheld and snippets filtered before anything is stored
+    for k in ("snippet",):
+        if fields.get(k):
+            fields[k] = privacy.filter_text(fields[k])
+    for k in ("origin_ref",):
+        if isinstance(fields.get(k), str):
+            fields[k] = privacy.scrub_urls(fields[k])
     cols = ["run_id", "url", "lead_kind", "observed_at"] + list(fields)
-    vals = [run_id, url, lead_kind, iso()] + [v if not isinstance(v, (list, dict)) else _json(v) for v in fields.values()]
+    vals = [run_id, privacy.safe_url(url), lead_kind, iso()] + \
+        [v if not isinstance(v, (list, dict)) else _json(v) for v in fields.values()]
     cur = conn.execute(f"INSERT INTO leads ({', '.join(cols)}) VALUES ({', '.join('?' * len(cols))})", vals)
     return cur.lastrowid
 
@@ -119,8 +130,8 @@ def add_url(conn: sqlite3.Connection, run_id: str, *, url_key: str, canonical_ur
     cur = conn.execute(
         "INSERT INTO urls (run_id, url_key, canonical_url, domain, registrable_domain, platform, decision,"
         " reject_code, reject_detail, first_seen_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
-        (run_id, url_key, canonical_url, domain, registrable_domain, platform, decision, reject_code,
-         reject_detail, iso()),
+        (run_id, url_key, privacy.safe_url(canonical_url), domain, registrable_domain, platform, decision, reject_code,
+         privacy.scrub_urls(reject_detail), iso()),
     )
     return cur.lastrowid
 
@@ -137,7 +148,7 @@ def add_robots_check(conn: sqlite3.Connection, run_id: str, origin: str, http_st
     conn.execute(
         "INSERT INTO robots_checks (run_id, origin, http_status, result, failure_code, detail, crawl_delay, checked_at)"
         " VALUES (?,?,?,?,?,?,?,?)",
-        (run_id, origin, http_status, result, failure_code, detail, crawl_delay, iso()),
+        (run_id, origin, http_status, result, failure_code, privacy.scrub_urls(detail), crawl_delay, iso()),
     )
 
 
@@ -145,8 +156,9 @@ def add_attempt(conn: sqlite3.Connection, run_id: str, url_id: int, a: dict) -> 
     cur = conn.execute(
         "INSERT INTO fetch_attempts (run_id, url_id, attempt_no, request_url, outcome, http_status, content_type,"
         " bytes, elapsed_ms, failure_code, detail, started_at, connected_ip) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
-        (run_id, url_id, a["attempt_no"], a["request_url"], a["outcome"], a.get("http_status"),
-         a.get("content_type"), a.get("bytes", 0), a.get("elapsed_ms"), a.get("failure_code"), a.get("detail"),
+        (run_id, url_id, a["attempt_no"], privacy.safe_url(a["request_url"]), a["outcome"], a.get("http_status"),
+         a.get("content_type"), a.get("bytes", 0), a.get("elapsed_ms"), a.get("failure_code"),
+         privacy.scrub_urls(a.get("detail")),
          a.get("started_at") or iso(), a.get("connected_ip")),
     )
     return cur.lastrowid
@@ -162,12 +174,13 @@ def add_document(conn: sqlite3.Connection, run_id: str, url_id: int, fetch_attem
         " date_conflict, modified_at, text_chars, text_sha256, simhash, usable, failure_code, extractor, flags_json,"
         " metadata_json, text, text_expires_at, created_at) VALUES"
         " (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-        (did, run_id, url_id, fetch_attempt_id, d["evidence_kind"], d["source_url"], d.get("canonical_link"),
-         d.get("content_type"), d.get("title"), d.get("author"), d.get("site_name"), d.get("language"),
+        (did, run_id, url_id, fetch_attempt_id, d["evidence_kind"], privacy.safe_url(d["source_url"]),
+         privacy.safe_url(d.get("canonical_link")), d.get("content_type"), privacy.filter_text(d.get("title")),
+         d.get("author"), d.get("site_name"), d.get("language"),
          d.get("published_at"), d.get("published_source"), _json(d.get("date_candidates")),
          int(bool(d.get("date_conflict"))), d.get("modified_at"), d.get("text_chars", 0), d.get("text_sha256"),
          d.get("simhash"), int(bool(d.get("usable"))), d.get("failure_code"), d["extractor"],
-         _json(d.get("flags")), _json(d.get("metadata")), d.get("text"),
+         _json(d.get("flags")), _json(privacy.scrub_obj(d.get("metadata"))), privacy.filter_text(d.get("text")),
          iso(created + timedelta(days=text_days)) if d.get("text") else None, iso(created)),
     )
     return did

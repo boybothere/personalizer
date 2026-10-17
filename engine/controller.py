@@ -11,6 +11,7 @@ import json
 import sqlite3
 from dataclasses import dataclass, field
 
+from . import privacy
 from .budget import BudgetExceeded, RunBudget
 from .config import EngineConfig
 from .failures import BUDGET_CODES, Code
@@ -420,7 +421,8 @@ class AdaptiveController:
             " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (self.run_id, self.step, o.key if o else None, json.dumps(qids), json.dumps(v.spec.as_dict()) if v else None,
              selection, json.dumps(scores) if scores else None, json.dumps(c.as_dict()) if c else None,
-             json.dumps(followups or []), self.identity_status, decision, why, repo.iso()))
+             privacy.scrub_urls(json.dumps(followups or [])), self.identity_status, decision,
+             privacy.scrub_urls(why), repo.iso()))
         repo.trace(self.conn, self.run_id, "planner", decision, ref_type="objective", ref_id=o.key if o else None,
                    reason=why[:500], data={"step": self.step})
 

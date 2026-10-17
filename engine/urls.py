@@ -9,6 +9,7 @@ from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit, urlunsp
 
 from tld import get_fld
 
+from . import privacy
 from .config import Platforms as PlatformSwitches
 from .failures import Code
 from .fetch.netpolicy import is_noncanonical_numeric, is_public_ip
@@ -106,6 +107,8 @@ def static_policy(raw: str, canonical: CanonicalURL | None, switches: PlatformSw
             return PolicyDecision(False, Code.URL_PRIVATE_ADDRESS, canonical.domain)
     if is_excluded(canonical.domain):
         return PolicyDecision(False, Code.URL_EXCLUDED_DOMAIN, canonical.registrable)
+    if (cat := privacy.url_category(raw)) is not None:
+        return PolicyDecision(False, Code.URL_OUT_OF_SCOPE, cat)  # never requested; stored only as a hash
     platform = platform_for(canonical.domain)
     if platform and not platform.page_fetch:
         name = platform.name

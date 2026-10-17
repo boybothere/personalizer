@@ -15,6 +15,7 @@ from datetime import timedelta
 
 import httpx
 
+from .. import privacy
 from ..budget import BudgetExceeded, RunBudget
 from ..config import EngineConfig
 from ..failures import BUDGET_CODES, Code
@@ -127,8 +128,9 @@ class SearchRunner:
             cur = self.conn.execute(
                 "INSERT INTO search_results (run_id, query_id, provider, rank, url, url_key, domain, title, snippet,"
                 " provider_date, off_target, text_expires_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-                (self.run_id, qid, name, hit.rank, hit.url, c.key, c.domain, hit.title if persist else None,
-                 hit.snippet if persist else None, hit.provider_date, int(is_off), expires))
+                (self.run_id, qid, name, hit.rank, privacy.safe_url(hit.url), c.key, c.domain,
+                 privacy.filter_text(hit.title) if persist else None,
+                 privacy.filter_text(hit.snippet) if persist else None, hit.provider_date, int(is_off), expires))
             if not is_off:
                 leads.append(Lead(hit.url, kind="search_result", origin_ref=f"search_query:{qid}", provider=name,
                                   query_text=query_text, rank=hit.rank, snippet=hit.snippet,

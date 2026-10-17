@@ -15,6 +15,7 @@ class Code(str, Enum):
     URL_NONCANONICAL_HOST = "URL_NONCANONICAL_HOST"
     CONNECTION_POLICY_REFUSED = "CONNECTION_POLICY_REFUSED"
     URL_EXCLUDED_DOMAIN = "URL_EXCLUDED_DOMAIN"
+    URL_OUT_OF_SCOPE = "URL_OUT_OF_SCOPE"
     URL_PLATFORM_DISCOVERY_ONLY = "URL_PLATFORM_DISCOVERY_ONLY"
     URL_PLATFORM_CONNECTOR_ONLY = "URL_PLATFORM_CONNECTOR_ONLY"
     URL_PLATFORM_UNAVAILABLE = "URL_PLATFORM_UNAVAILABLE"
@@ -87,6 +88,8 @@ EXPLANATIONS: dict[Code, str] = {
     Code.URL_NONCANONICAL_HOST: "The host is a non-canonical numeric address (decimal, hex, octal or shorthand IPv4); resolvers disagree on these, so they are never requested.",
     Code.CONNECTION_POLICY_REFUSED: "The pinning layer refused the connection (no pinned address, a non-public pinned address, or the socket peer differed from the checked address).",
     Code.URL_EXCLUDED_DOMAIN: "The domain is excluded by policy (people-search, data broker, leak or records site).",
+    Code.URL_OUT_OF_SCOPE: "The URL path or query names an out-of-scope topic (sensitive trait, residence or "
+                           "whereabouts); it is never requested and is stored only as a hash.",
     Code.URL_PLATFORM_DISCOVERY_ONLY: "The platform permits no automated page access and has no enabled content route; "
                                       "the URL is kept as a lead only.",
     Code.URL_PLATFORM_CONNECTOR_ONLY: "Pages on this platform are not fetched; content is available only through its "
@@ -160,7 +163,7 @@ NATURAL_STOPS = {Code.PLAN_RESOLVED, Code.DIMINISHING_RETURNS}
 
 # "Blocked or inaccessible": we deliberately did not, or were not allowed to, obtain the content.
 BLOCKED_CODES = {Code.URL_PLATFORM_DISCOVERY_ONLY, Code.URL_PLATFORM_CONNECTOR_ONLY, Code.URL_PLATFORM_UNAVAILABLE,
-                 Code.URL_EXCLUDED_DOMAIN, Code.ROBOTS_DISALLOWED, Code.ROBOTS_UNREACHABLE,
+                 Code.URL_EXCLUDED_DOMAIN, Code.URL_OUT_OF_SCOPE, Code.ROBOTS_DISALLOWED, Code.ROBOTS_UNREACHABLE,
                  Code.HTTP_ACCESS_CONTROLLED, Code.ACCESS_CHALLENGE, Code.URL_NONCANONICAL_HOST}
 
 
