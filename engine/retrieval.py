@@ -31,6 +31,9 @@ from .urls import check
 SNIPPET_LIMITATIONS = ["provider-generated text", "may be truncated", "may be stale",
                        "no surrounding context", "not retrieved by this engine"]
 STOP_CODES = BUDGET_CODES | {Code.CANCELLED}
+# Stops that make further fetching impossible. Lead, search and cost limits stop *new* work but do not
+# abandon already-accepted URLs, which are still fetched within the remaining fetch/byte/time budget.
+FETCH_BLOCKING_STOPS = STOP_CODES - {Code.BUDGET_LEADS, Code.BUDGET_SEARCHES, Code.BUDGET_COST}
 
 
 @dataclass
@@ -183,7 +186,7 @@ class Retriever:
             await asyncio.sleep(min(0.25, max(0.01, budget.remaining_seconds())))
 
     async def _one(self, run_id: str, url_id: int, url: str, fetcher: Fetcher, budget: RunBudget) -> None:
-        if self.stop in STOP_CODES:
+        if self.stop in FETCH_BLOCKING_STOPS:
             return  # recorded by _finalise_unprocessed
         try:
             budget.check()

@@ -267,6 +267,14 @@ def test_time_budget_stops_partial_or_failed():
     assert stop == "BUDGET_TIME" and st != "completed"
 
 
+def test_lead_limit_still_fetches_already_accepted_leads():
+    # regression found while measuring budget behaviour: hitting max_leads abandoned the accepted leads
+    conn, rid = run_world(rich_world(), cfg=make_cfg(max_leads=2))
+    st, stop, _ = status(conn, rid)
+    m = metrics(conn, rid)
+    assert (st, stop) == ("partial", "BUDGET_LEADS") and m["leads"]["total"] == 2 and m["fetch"]["urls_retrieved"] == 2
+
+
 def test_search_budget_is_checked_before_sending():
     w = rich_world()
     run_world(w, cfg=make_cfg(max_search_requests=3))
