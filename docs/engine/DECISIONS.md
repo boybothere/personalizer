@@ -99,6 +99,18 @@ Evidence for platform claims is in [PLATFORMS.md](PLATFORMS.md); every probe the
 | D9.6 | **PDFs are reported, not fetched** (`UNSUPPORTED_PDF`), until PDF extraction is approved and built. | Decided |
 | D9.7 | **Provider-text fallback is disabled by default** (`providers.fallback_enabled = false`) for real research until bot-page detection has been reviewed; limitations and the review steps are in [BOT_DETECTION_REVIEW.md](BOT_DETECTION_REVIEW.md). Access controls are never bypassed. | **Approved** (2026-10-17) |
 
+## D10 Identity resolution (phase 5)
+
+| # | Decision | Status |
+|---|---|---|
+| D10.1 | **Evidence is per mention, not per page.** An organisation counts only when it is grammatically attached to the name (appositive, predicate, "of"/"at", parentheses, possessive, "Org Title Name"). An organisation elsewhere on the page does not count. | Decided |
+| D10.2 | **A name-plus-organisation match alone is `possible`, never resolved.** Resolution needs a confirmed anchor (official domain or user-supplied URL) or `strong` pages (organisation plus role, location or confirmed-profile link) on **≥ 2 independent registrable domains**. Syndicated copies count once. | Decided |
+| D10.3 | **Uncertainty is explicit.** Subject statuses are `confirmed`, `strongly_supported`, `possible`, `conflicting` and `insufficient_evidence`. The last three are unresolved and are never coerced into a match. Namesakes are kept as separate `namesake:<org>` candidates. | Decided |
+| D10.4 | **No automatic current-role decision.** A trusted profile on a newer page for another organisation means `conflicting`. If all support is more than 2 years old and newer pages point elsewhere, the subject is capped at `possible`. | Decided |
+| D10.5 | **Duplicate profiles are never auto-merged.** Two profiles on one platform are never both confirmed. If neither is clearly stronger, both are `duplicate_unresolved`. | Decided |
+| D10.6 | **Reversible and auditable.** Rule decisions carry `identity-rules-1`. User overrides need a written reason and supersede earlier ones. Re-resolution keeps user decisions. Migration 0005 is reversible. | Decided |
+| D10.7 | **Advisory in this phase.** The resolution is recorded and shown in metrics, but it does not change run status or gates. | Decided, pending your Phase 6 direction |
+
 ## Open items needing your input
 
 1. ⚖ items: X/Reddit terms review; Exa storage terms (D7.1); DPDP legal review (DPDP_ANALYSIS.md).

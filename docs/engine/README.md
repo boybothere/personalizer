@@ -15,6 +15,9 @@ This is the deterministic rebuild of the research layer. It makes no LLM calls. 
 | [PHASE4_PLAN.md](PHASE4_PLAN.md) | Phase 4 plan and acceptance criteria (fetch hardening) |
 | [PHASE4_RESULTS.md](PHASE4_RESULTS.md) | Phase 4: pinned connections, SSRF/rebinding fixes, challenges, PDF, metrics, live trace |
 | [examples/phase4_fetch_trace_live.txt](examples/phase4_fetch_trace_live.txt) | Live fetch trace (public, non-personal pages) |
+| [BOT_DETECTION_REVIEW.md](BOT_DETECTION_REVIEW.md) | Bot/challenge detection: limitations and review steps (why the provider fallback is off) |
+| [PHASE5_PLAN.md](PHASE5_PLAN.md) | Phase 5 plan and acceptance criteria (identity resolution) |
+| [PHASE5_RESULTS.md](PHASE5_RESULTS.md) | Phase 5: identity resolution: labelled cases, example decisions, false-match risks, limitations |
 | [DPDP_ANALYSIS.md](DPDP_ANALYSIS.md) | DPDP Act applicability and commencement: **draft for legal review** |
 
 ## Setup
@@ -80,3 +83,7 @@ ENGINE_LIVE=1 pytest tests_engine/test_live.py  # live smoke test (free, keyless
   - date sources and conflicts; flags
   - what was blocked or inaccessible, and why
   - time per stage; cost
+- **identity** (advisory; does not change the run status): subject status `confirmed` / `strongly_supported`
+  (resolved) or `possible` / `conflicting` / `insufficient_evidence` (unresolved), with an explanation,
+  documents by status, and profiles (`duplicate_unresolved` when one platform has several candidates).
+  A name-plus-organisation match alone is never enough. See PHASE5_RESULTS.md.
