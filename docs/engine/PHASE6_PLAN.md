@@ -4,6 +4,12 @@
 **Status:** **Approved with conditions (2026-10-18).** This revision adds those conditions (§0.1) before implementation.
 **Baseline:** `e4199b5` (Phase 5, pushed)
 
+> **Corrective pass (2026-10-18), after the read-only audit.** Sections 2.4.1, 2.6.1, 2.7 and 2.7.1 below describe
+> what is actually implemented and verified, not the original intent. The original text said the filter ran
+> "before any evidence text is stored" and described the end-of-run redaction as removing text that was only
+> "briefly" stored. That was not true for page text, titles, snippets, URLs or identity records. Details and test
+> evidence are in PHASE6_RESULTS.md §11.
+
 ## 0.1 Approval conditions and where they are handled
 
 | Condition | Where in this plan |
@@ -90,6 +96,8 @@ Documents in a run are joined into **origin groups** using union-find. Each link
 9. "Originally published on X" where X names another document's site → merged.
 
 The last two (7–8) can merge sites that share boilerplate, such as cookie banners. That is accepted: it errs towards fewer independent sources.
+
+*As implemented:* the shingle rule also needs at least 4 shared shingles, and shingles that contain the subject's own name are left out of it, so independent outlets repeating "Name, title at Organisation" are not taken as copies. Shared 12-word passages and quotes still count in full.
 
 Corroboration, for claims and for identity's "≥ 2 independent" rule (`identity-rules-2`), then counts **origin groups, not URLs or domains**. Same-domain pages remain one source for identity, as in Phase 5.
 
@@ -182,6 +190,12 @@ When identity changes, dependent claims change as follows. This is the **depende
 
 Superseded claims keep their rows (audit) until the run expires. Their evidence text expires on the normal 7-day schedule.
 
+*As implemented (corrective pass):* each extraction compares claim fingerprints (type, object, polarity, status, confidence, flags, mode, subject identity status, and every evidence document with its span, role and identity status). Unchanged claims keep their row and id. Only changed claims are superseded:
+- `identity_changed` when the subject status changed, or a document the old or new version cites changed its gate status (the per-run gate, document id to status with no text, is kept in the claims trace);
+- `recomputed` otherwise.
+
+The first extraction is labelled `initial`. Tested in `test_claim_lifecycle.py`.
+
 ### 2.5 Claim status, flags and confidence (fixes P5 and P6)
 
 Claims about the same thing are grouped by `(claim_type, predicate, object_key)`; `object_key` is the normalised object. Evidence is counted by **origin group**.
@@ -239,22 +253,22 @@ A test checks that every `evidence_text` is an exact substring of its document t
 
 | Path | What could hold evidence text | Mechanism | Verified by |
 |---|---|---|---|
-| Main database file | `claim_evidence.evidence_text`, `documents.text`, snippets | `purge()` sets the columns to NULL (and deletes expired runs). `PRAGMA secure_delete = ON` makes SQLite overwrite freed cell content and freed pages with zeros instead of leaving it in free space. | Test: purge at +8 days, then scan the **raw bytes** of the `.db` file for the sentences |
-| WAL file (`-wal`) | Earlier page images: after an UPDATE, the old page version stays in the WAL until a checkpoint copies the new version into the main file | `purge()` runs `PRAGMA wal_checkpoint(TRUNCATE)` and **now checks the result**. If a reader blocks it (`busy`), purge reports `checkpoint_complete: false`, and the text must be treated as still present until the next purge succeeds. | Test: raw-byte scan of `-wal` after purge; test that `checkpoint_complete` is reported |
+| Main database file | `claim_evidence.evidence_text`, `documents.text` and `documents.title`, snippets | `purge()` sets the columns to NULL (and deletes expired runs). Titles expire with the text (corrective pass). `PRAGMA secure_delete = ON` makes SQLite overwrite freed cell content and freed pages with zeros instead of leaving it in free space. | Test: purge at +8 days, then scan the **raw bytes** of the `.db` file for the sentences |
+| WAL file (`-wal`) | Until a checkpoint completes, the new page versions are in the WAL and the **old content stays in the main file** | `purge()` runs `PRAGMA wal_checkpoint(TRUNCATE)` on **every** call (corrective pass), so a checkpoint blocked by a reader is retried at the next start even if nothing new expired. The result is reported (`checkpoint_complete`) and recorded on the run that triggered it (`metrics()["maintenance"]`). | `test_retention.py`: blocked checkpoint, then a retry with nothing new expiring; raw bytes checked before the connection closes |
 | Shared-memory index (`-shm`) | Only the WAL index (page numbers and hashes), no row content | None needed | Test: raw-byte scan |
-| SQLite temporary files (sorting, temp tables, statement journals) | Could spill row content to OS temp files | **New:** `PRAGMA temp_store = MEMORY` on every engine connection, so these never touch disk | Test: the pragma is set; no new files appear in the database directory or the temp directory during a run |
+| SQLite temporary files (sorting, temp tables, statement journals) | Could spill row content to OS temp files | `PRAGMA temp_store = MEMORY` on every engine connection | `test_temp_artifacts.py`: pragma asserted; with TMP/TEMP pointed at an isolated folder, a research run plus a large sort leave no files there or in the database folder. **Limit:** SQLite deletes its own temp files on close, so only persisted leftovers can be observed. |
 | Rollback journal | Not used in WAL mode | n/a | |
 | Trace events, metrics, run summary | Could copy text if written carelessly | Claim and filter code write **counts, ids and reason codes only**, never sentences | Test: the trace and metrics JSON contain none of the evidence sentences |
 | Logs | The engine writes no log files (no `logging` handlers). The CLI prints to the terminal. | No log files to expire | Test: no `logging` handler or file writer in `engine/` |
 | In-process caches | robots.txt cache, HTTP client | In memory, per run; gone when the process ends. No disk cache. | Code review (no disk cache exists) |
 | Exports (`summary`, `claims` CLI, `--json`) | Produced on demand **from the database**, so after expiry they cannot contain expired text | Exports print to stdout. The engine writes no export files. | Test: `claims` output after purge shows null evidence |
 | Backups | The engine makes **no** backups. `db upgrade` does not copy. | **Outside the engine:** user-made copies, OS backup or sync (File History, OneDrive) and pytest's temporary folders (synthetic data only; pytest keeps the last 3). Requirement for production: exclude `data/` from backup/sync, or apply the same 7/30-day retention to backups. **This cannot be enforced or verified by the engine.** | Documented as a limitation |
-| When purge runs | Expired text stays until the next purge | Purge runs before every run (existing). Without runs, `python -m engine purge` must be scheduled daily (for example Windows Task Scheduler). Not automated in this phase. | Documented as a limitation |
+| When purge runs | Expired text stays until the next purge | Start-of-run maintenance (`engine/maintenance.py`) runs before every research, search and retrieve run and in `python -m engine purge`: interrupted-run recovery, then purge. **No scheduler exists:** while the engine is idle nothing is purged; `python -m engine purge` would have to be scheduled externally. | Documented as a limitation |
 | Physical storage | SSD wear levelling and filesystem snapshots may keep old blocks | Not controllable from SQLite | Documented as a limitation |
 
 ### 2.7 Out-of-scope content filter (`engine/claims/scope.py`; fixes P7; D4.1–D4.3)
 
-This filter runs **before** a claim or any evidence text is stored. A sentence matching it is dropped entirely: no claim, no evidence text, no topic. Only a count by category goes to the trace (for example `dropped_out_of_scope: {health: 1, whereabouts: 2}`).
+This filter runs **before** a claim or any claim evidence is stored. A sentence matching it is dropped: no claim, no evidence text, no topic. Only a count by category goes to the trace (for example `dropped_out_of_scope: {health: 1, whereabouts: 2}`). Storage of page text, titles, snippets, URLs and identity records is covered separately by the write-boundary filter (§2.7.1).
 
 | Category | Dropped (examples) |
 |---|---|
@@ -268,17 +282,23 @@ This filter runs **before** a claim or any evidence text is stored. A sentence m
 
 The filter is lexical and deliberately over-inclusive. A false drop costs a missed claim, while a false keep would be a privacy breach.
 
-#### 2.7.1 Removing out-of-scope text from storage (S2)
+#### 2.7.1 Removing out-of-scope text from storage (S2) — as implemented after the corrective pass
 
-Not storing a claim is not enough: the page text itself sits in `documents.text` for 7 days, and snippets sit in `leads` and `search_results`.
+Not storing a claim is not enough: page text, titles, snippets, URLs and identity records are stored too. Three layers apply:
 
-So after identity resolution and claim extraction, a **redaction step** runs over **every usable document in the run**, including namesake pages. Each out-of-scope sentence in `documents.text` is overwritten with a placeholder of the **same length**, so offsets stay valid. `documents.title`, `leads.snippet`, `search_results.snippet` and `search_results.title` get the same treatment. A WAL checkpoint follows.
+1. **Write boundary** (`engine/privacy.py`). It runs inside the functions that persist content: `repo.add_document`, `add_lead`, `add_url`, `add_attempt`, `add_robots_check`, `trace`, `create_run` (run input), the search-results insert, planner decisions, identity `save` and the claims store. Every entry point (`research`, `search`, `retrieve`) is therefore covered, and an interrupted run cannot leave **storage-level** content behind.
+   - **Storage-level categories:** sensitive traits (D4.1), residence, and current or upcoming whereabouts. Matching sentences in page text, titles and snippets are replaced by a same-length placeholder **before writing**.
+   - **URLs** whose path or query names such a topic are refused by URL policy (`URL_OUT_OF_SCOPE`, re-checked on every redirect hop) and stored only as `withheld:out_of_scope:<hash>`.
+   - **Identity records:** out-of-scope organisation or occupation labels (for example a support group named as a namesake's affiliation) are stored as `out_of_scope:<hash>`. Reasons or explanations carrying such content are withheld.
+2. **End-of-run redaction** (defence in depth). This is the full claim-level classifier, with the subject's location, over every stored text of the run. It additionally removes **undated travel and undated place** sentences. Those are claim rules (D4.2) that are deliberately *not* applied at the write boundary, because identity resolution needs them (for example "a pastry chef in Chennai" marks a namesake).
+3. **Interrupted-run recovery** (`engine/maintenance.py`). At the next start, runs still marked `running` after `max(retention.interrupted_after_seconds = 1800, wall budget + 60 s)` are marked `failed` (stop reason `interrupted`, gate `RUN_INTERRUPTED`) and get the end-of-run redaction, followed by the purge checkpoint. Younger runs may be live in another process and are left alone. Finished runs are never touched.
 
-`text_sha256` and `simhash` still describe the original text, and that is recorded.
+`text_sha256` and `simhash` describe the original fetched text, before filtering.
 
-The privacy test (G7) runs a full research run on a **file** database, then scans the raw bytes of `.db`, `-wal` and `-shm`, plus the trace, metrics and CLI outputs. It checks that no out-of-scope sentence remains, and that no new files appeared in the database directory.
-
-**Limitation:** during the run, before redaction, the text is in memory and briefly in the database and WAL. The filter is lexical, so out-of-scope sentences it does not recognise stay until the normal 7-day expiry.
+**Limitations:**
+- The detection is **lexical** and incomplete. Content phrased in words the lists do not contain is stored and only removed at the 7-day expiry.
+- Undated place and travel sentences are stored until end-of-run redaction, or until recovery if the run is interrupted.
+- Page content is in process memory during a run.
 
 ## 3. Schema (migration 0006 `claims`, reversible; tested on a copy only)
 

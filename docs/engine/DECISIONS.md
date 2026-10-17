@@ -124,6 +124,10 @@ Evidence for platform claims is in [PLATFORMS.md](PLATFORMS.md); every probe the
 | D11.7 | Out-of-scope sentences never become claims and are overwritten in all stored text after the run (same-length placeholder; counts only) | **Approved** (S2) |
 | D11.8 | Identity confidence and claim confidence are stored and shown separately. When identity changes, dependent claims are superseded and recomputed from retained text, or the run reports `text_expired`. | **Approved** (S3) |
 | D11.9 | Claim confidence is an ordinal label derived from status and flags, **not a probability**. Synthetic results are reported only as agreement with authored labels. | **Approved** (S4, S5) |
+| D11.10 | **Write-boundary filtering** (corrective pass). Storage-level categories (sensitive traits, residence, current/upcoming whereabouts) are filtered inside the persistence functions for every entry point. Sensitive URL paths are refused and stored as a hash. Out-of-scope identity labels are withheld. Undated place and travel stay claim-level plus end-of-run redaction, because identity needs them. | Implemented, awaiting review |
+| D11.11 | **Interrupted runs** still `running` after `max(1800 s, wall budget + 60 s)` are marked `failed` / `interrupted` at the next start and redacted. Finished runs are never modified. | Implemented, awaiting review |
+| D11.12 | **Retention reliability:** titles expire with text (D4.4); the WAL checkpoint is retried on every purge; maintenance outcomes are recorded on the run. No scheduler: nothing is purged while idle. | Implemented, awaiting review |
+| D11.13 | **Claim lifecycle:** only claims affected by an identity change are superseded (`identity_changed`); unchanged claims keep their row; first extraction `initial`. | Implemented, awaiting review |
 
 ## Open items needing your input
 

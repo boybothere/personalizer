@@ -93,3 +93,9 @@ ENGINE_LIVE=1 pytest tests_engine/test_live.py  # live smoke test (free, keyless
   Claims exist only for a resolved subject and only from identity-gated pages. Confidence is an ordinal label
   (not a probability) and is separate from identity. `python -m engine claims RUN_ID --evidence` lists them with
   their sources; evidence sentences are shown only while retained (7 days). See PHASE6_RESULTS.md.
+- **maintenance**: what the start-of-run maintenance did (interrupted runs recovered, rows purged,
+  `checkpoint_complete`). Nothing is purged while the engine is idle: no scheduler exists.
+
+Privacy: sensitive traits, residence and current or upcoming whereabouts are filtered when content is written
+(all entry points), sensitive URL paths are never requested and stored only as a hash, and undated places are
+removed at the end of a run. Detection is lexical and incomplete; see PHASE6_RESULTS.md §11.
