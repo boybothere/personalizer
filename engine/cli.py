@@ -258,7 +258,9 @@ def main(argv: list[str] | None = None) -> int:
     elif args.cmd == "delete-run":
         print(json.dumps({"deleted": repo.delete_run(conn, args.run_id)}))
     elif args.cmd == "purge":
-        print(json.dumps(repo.purge(conn)))
+        from .maintenance import startup
+
+        print(json.dumps(startup(conn, cfg)))
     return 0
 
 

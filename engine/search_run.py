@@ -25,6 +25,7 @@ from .search.base import Hit, Provider, Usage
 from .search.providers import TavilyProvider
 from .search.runner import SearchRunner, build_providers
 from .search.spec import SearchSpec
+from . import maintenance
 from .store import repo
 
 
@@ -97,12 +98,13 @@ async def search_run(conn: sqlite3.Connection, cfg: EngineConfig, specs: list[Se
                      transport: httpx.AsyncBaseTransport | None = None, resolver=None, sleep=asyncio.sleep,
                      today: date | None = None, retrieve: bool = True, label: str | None = None,
                      subject_id: str | None = None) -> str:
-    repo.purge(conn)  # retention is enforced before every run
+    maint = maintenance.startup(conn, cfg)  # retention is enforced before every run
     run_id = repo.create_run(conn, "search", {"label": label, "retrieve": retrieve,
                                               "specs": [s.as_dict() for s in specs]},
                              cfg.safe_dump(), cfg.retention.run_days, subject_id)
     repo.trace(conn, run_id, "run", "started", reason="search run requested",
                data={"specs": len(specs), "providers": cfg.providers.enabled, "budget": cfg.budget.model_dump()})
+    maintenance.record(conn, run_id, maint)
     budget = RunBudget(cfg.budget)
     own_client = provider_client is None and providers is None
     client = provider_client or httpx.AsyncClient(headers={"User-Agent": cfg.user_agent})

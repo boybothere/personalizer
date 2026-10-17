@@ -14,7 +14,7 @@ import httpx
 from .budget import RunBudget
 from .config import EngineConfig
 from .controller import AdaptiveController
-from . import origins
+from . import maintenance, origins
 from .claims.scope import redact_run
 from .claims.store import update_claims
 from .identity.evidence import Subject
@@ -43,7 +43,7 @@ async def research_run(conn: sqlite3.Connection, cfg: EngineConfig, inp: Researc
                        resolver=None, sleep=asyncio.sleep, today: date | None = None, subject_id: str | None = None,
                        label: str | None = None) -> str:
     screen(inp.meeting_purpose, inp.focus_topics)  # raises PolicyViolation before anything is recorded
-    repo.purge(conn)
+    maint = maintenance.startup(conn, cfg)
     objectives = build_plan(inp, cfg.planner)
     run_id = repo.create_run(conn, "research", {"label": label, "input": inp.as_dict(),
                                                 "plan": [o.key for o in objectives]},
@@ -51,6 +51,7 @@ async def research_run(conn: sqlite3.Connection, cfg: EngineConfig, inp: Researc
     repo.trace(conn, run_id, "run", "started", reason="adaptive research run requested",
                data={"objectives": [o.key for o in objectives], "budget": cfg.budget.model_dump(),
                      "planner": cfg.planner.model_dump()})
+    maintenance.record(conn, run_id, maint)
     budget = RunBudget(cfg.budget)
     own_client = providers is None
     client = httpx.AsyncClient(headers={"User-Agent": cfg.user_agent}) if own_client else None

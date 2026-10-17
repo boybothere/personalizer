@@ -73,11 +73,14 @@ class Retriever:
     # ------------------------------------------------------------------ public
 
     async def run(self, leads: list[Lead], *, subject_id: str | None = None, label: str | None = None) -> str:
-        repo.purge(self.conn)  # retention is enforced before every run
+        from . import maintenance
+
+        maint = maintenance.startup(self.conn, self.cfg)  # retention is enforced before every run
         run_id = repo.create_run(self.conn, "retrieval", {"label": label, "leads": [asdict(l) for l in leads]},
                                  self.cfg.safe_dump(), self.cfg.retention.run_days, subject_id)
         repo.trace(self.conn, run_id, "run", "started", reason="retrieval run requested",
                    data={"leads": len(leads), "budget": self.cfg.budget.model_dump()})
+        maintenance.record(self.conn, run_id, maint)
         budget = RunBudget(self.cfg.budget)
         self.stop = None
         await self.process(run_id, leads, budget)

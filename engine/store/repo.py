@@ -181,7 +181,7 @@ def add_document(conn: sqlite3.Connection, run_id: str, url_id: int, fetch_attem
          int(bool(d.get("date_conflict"))), d.get("modified_at"), d.get("text_chars", 0), d.get("text_sha256"),
          d.get("simhash"), int(bool(d.get("usable"))), d.get("failure_code"), d["extractor"],
          _json(d.get("flags")), _json(privacy.scrub_obj(d.get("metadata"))), privacy.filter_text(d.get("text")),
-         iso(created + timedelta(days=text_days)) if d.get("text") else None, iso(created)),
+         iso(created + timedelta(days=text_days)) if d.get("text") or d.get("title") else None, iso(created)),
     )
     return did
 
@@ -214,10 +214,13 @@ def delete_subject(conn: sqlite3.Connection, subject_id: str) -> bool:
 
 
 def purge(conn: sqlite3.Connection, at: datetime | None = None) -> dict:
-    """Delete expired runs; null out document text past its expiry (hashes and metadata stay)."""
+    """Delete expired runs; null out document text and titles past their expiry (hashes and metadata stay).
+
+    The WAL checkpoint runs on every purge, not only when rows changed, so a checkpoint that an open reader
+    blocked earlier is retried; `checkpoint_complete` reports whether it succeeded."""
     t = iso(at)
-    texts = conn.execute("UPDATE documents SET text = NULL WHERE text IS NOT NULL AND text_expires_at < ?",
-                         (t,)).rowcount
+    texts = conn.execute("UPDATE documents SET text = NULL, title = NULL WHERE (text IS NOT NULL OR title IS NOT"
+                         " NULL) AND text_expires_at < ?", (t,)).rowcount
     snippets = conn.execute("UPDATE leads SET snippet = NULL WHERE snippet IS NOT NULL AND snippet_expires_at < ?",
                             (t,)).rowcount
     snippets += conn.execute("UPDATE search_results SET snippet = NULL, title = NULL WHERE (snippet IS NOT NULL"
@@ -228,6 +231,5 @@ def purge(conn: sqlite3.Connection, at: datetime | None = None) -> dict:
                                 " AND text_expires_at < ?", (t,)).rowcount
     runs = conn.execute("DELETE FROM runs WHERE expires_at < ?", (t,)).rowcount
     out = {"runs_deleted": runs, "texts_cleared": texts, "snippets_cleared": snippets, "evidence_cleared": evidence}
-    if texts or snippets or runs or evidence:
-        out["checkpoint_complete"] = _checkpoint(conn)
+    out["checkpoint_complete"] = _checkpoint(conn)  # always: also retries an earlier blocked checkpoint
     return out

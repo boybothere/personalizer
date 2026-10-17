@@ -52,6 +52,7 @@ def metrics(conn: sqlite3.Connection, run_id: str) -> dict:
         "planner": planner_metrics(conn, r),
         "identity": identity_metrics(conn, r),
         "claims": claim_metrics(conn, r),
+        "maintenance": maintenance_metrics(conn, r),
         "providers": provider_metrics(conn, r),
         "leads": {
             "total": leads,
@@ -128,6 +129,15 @@ def _usable_rate(conn: sqlite3.Connection, r: str) -> float | None:
 
 def _has_table(conn: sqlite3.Connection, name: str) -> bool:
     return conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (name,)).fetchone() is not None
+
+
+def maintenance_metrics(conn: sqlite3.Connection, r: str) -> dict:
+    """Retention purge and WAL checkpoint outcome recorded when this run started (never discarded)."""
+    row = conn.execute("SELECT reason, data_json FROM trace_events WHERE run_id=? AND stage='maintenance'"
+                       " ORDER BY id LIMIT 1", (r,)).fetchone()
+    if not row:
+        return {"available": False, "reason": "no start-of-run maintenance recorded for this run"}
+    return {"available": True, "status": row["reason"], **json.loads(row["data_json"])}
 
 
 def claim_metrics(conn: sqlite3.Connection, r: str) -> dict:
