@@ -18,6 +18,7 @@ This is the deterministic rebuild of the research layer. It makes no LLM calls. 
 | [BOT_DETECTION_REVIEW.md](BOT_DETECTION_REVIEW.md) | Bot/challenge detection: limitations and review steps (why the provider fallback is off) |
 | [PHASE5_PLAN.md](PHASE5_PLAN.md) | Phase 5 plan and acceptance criteria (identity resolution) |
 | [PHASE5_RESULTS.md](PHASE5_RESULTS.md) | Phase 5: identity resolution: labelled cases, example decisions, false-match risks, limitations |
+| [PHASE6_PLAN.md](PHASE6_PLAN.md) | Phase 6 plan (**proposed, for review**): evidence-gated claims, origin groups, organisation matching, out-of-scope filter |
 | [DPDP_ANALYSIS.md](DPDP_ANALYSIS.md) | DPDP Act applicability and commencement: **draft for legal review** |
 
 ## Setup
