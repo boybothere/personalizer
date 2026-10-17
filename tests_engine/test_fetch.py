@@ -4,7 +4,7 @@ import asyncio
 
 import httpx
 import pytest
-from conftest import RecordingSleep, Site, article, make_cfg
+from conftest import RecordingSleep, Site, article, make_cfg, orig_host
 
 from engine.budget import RunBudget
 from engine.failures import Code
@@ -160,7 +160,7 @@ def test_robots_redirect_to_private_address_is_not_followed():
                 robots=httpx.Response(302, headers={"location": "http://internal.example/robots.txt"}))
     res, _, robots = fetch(site, resolver=StaticResolver({"internal.example": ["10.1.1.1"]}))
     assert res.failure_code == Code.ROBOTS_UNREACHABLE.value and "disallowed target" in robots[0].detail
-    assert not any(r.url.host == "internal.example" for r in site.requests)
+    assert not any(orig_host(r) == "internal.example" for r in site.requests)
 
 
 def test_robots_redirect_to_same_site_is_followed():
@@ -194,7 +194,7 @@ def test_crawl_delay_is_respected_between_requests():
     (httpx.Response(404), Code.HTTP_NOT_FOUND),
     (httpx.Response(410), Code.HTTP_NOT_FOUND),
     (httpx.Response(418), Code.HTTP_CLIENT_ERROR),
-    (httpx.Response(200, content=b"%PDF-1.7", headers={"content-type": "application/pdf"}), Code.UNSUPPORTED_CONTENT_TYPE),
+    (httpx.Response(200, content=b"%PDF-1.7", headers={"content-type": "application/pdf"}), Code.UNSUPPORTED_PDF),
     (httpx.Response(200, json={"a": 1}), Code.UNSUPPORTED_CONTENT_TYPE),
     (httpx.Response(200, content=b"\x00\x01binary", headers={"content-type": "application/octet-stream"}),
      Code.UNSUPPORTED_CONTENT_TYPE),

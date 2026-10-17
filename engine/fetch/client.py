@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import ipaddress
 import random
+import re
 import socket
 import time
 from collections import defaultdict
@@ -27,7 +28,10 @@ from ..budget import BudgetExceeded, RunBudget
 from ..config import EngineConfig
 from ..failures import Code
 from ..urls import check
+from . import challenge
 from . import robots as robots_mod
+from .netpolicy import choose_ip, is_noncanonical_numeric, is_public_ip
+from .pinned import PinnedTransport, PinningError
 
 RETRYABLE_STATUS = {429, 500, 502, 503, 504}
 ACCESS_CONTROLLED = {401, 402, 403, 407, 451}
@@ -47,6 +51,7 @@ class Attempt:
     failure_code: str | None = None
     detail: str | None = None
     started_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    connected_ip: str | None = None  # the pinned, policy-checked address this request was sent to
 
 
 @dataclass
@@ -133,8 +138,11 @@ class Fetcher:
         self.sleep = sleep
         self.on_robots = on_robots
         self.rng = rng or random.Random()
+        # every request goes through the pinning layer (tests wrap their mock transport the same way);
+        # trust_env=False: environment proxies would re-resolve names and bypass the address policy
+        self.transport = PinnedTransport(inner=transport) if transport is not None else PinnedTransport()
         self.client = httpx.AsyncClient(
-            transport=transport, follow_redirects=False,
+            transport=self.transport, follow_redirects=False, trust_env=False,
             timeout=httpx.Timeout(self.f.read_timeout, connect=self.f.connect_timeout),
             headers={"User-Agent": cfg.user_agent,
                      "Accept": "text/html,application/xhtml+xml,application/rss+xml,application/atom+xml,"
@@ -152,20 +160,23 @@ class Fetcher:
 
     # ------------------------------------------------------------------ network policy
 
-    async def _address_check(self, host: str) -> tuple[Code, str] | None:
+    async def _resolve(self, host: str) -> tuple[str | None, tuple[Code, str] | None]:
+        """Resolve once, check every address, return the address to pin (or the reason to refuse)."""
+        if is_noncanonical_numeric(host):
+            return None, (Code.URL_NONCANONICAL_HOST, host)
         try:
             ip = ipaddress.ip_address(host.strip("[]"))
-            return None if ip.is_global else (Code.URL_PRIVATE_ADDRESS, str(ip))
+            return (str(ip), None) if is_public_ip(ip) else (None, (Code.URL_PRIVATE_ADDRESS, str(ip)))
         except ValueError:
             pass
         try:
             ips = await self.resolver.resolve(host)
         except (OSError, UnicodeError) as exc:
-            return Code.URL_DNS_FAILURE, f"{host}: {type(exc).__name__}"
-        bad = [ip for ip in ips if not ipaddress.ip_address(ip).is_global]
-        if not ips or bad:
-            return Code.URL_PRIVATE_ADDRESS, f"{host} -> {', '.join(bad or ['no address'])}"
-        return None
+            return None, (Code.URL_DNS_FAILURE, f"{host}: {type(exc).__name__}")
+        bad = [ip for ip in ips if not is_public_ip(ip)]
+        if not ips or bad:  # one non-public answer refuses the host; never "pick the good one"
+            return None, (Code.URL_PRIVATE_ADDRESS, f"{host} -> {', '.join(bad or ['no address'])}")
+        return choose_ip(ips), None
 
     async def _polite(self, host: str, crawl_delay: float | None) -> None:
         interval = max(self.f.min_host_interval, min(crawl_delay or 0.0, self.f.max_crawl_delay))
@@ -193,13 +204,14 @@ class Fetcher:
         target, status, body, error = origin + "/robots.txt", None, None, None
         try:
             for hop in range(6):  # RFC 9309: follow at least five redirects
-                if hop:  # redirect targets get the same address policy as content URLs
-                    problem = await self._address_check(urlsplit(target).hostname or "")
-                    if problem or urlsplit(target).scheme not in ("http", "https"):
-                        error = f"robots.txt redirected to a disallowed target ({problem[0].value if problem else 'scheme'})"
-                        break
+                # every hop (including the first) is resolved once, checked, and pinned
+                ip, problem = await self._resolve(urlsplit(target).hostname or "")
+                if problem or urlsplit(target).scheme not in ("http", "https"):
+                    where = "redirected to" if hop else "host is"
+                    error = f"robots.txt {where} a disallowed target ({problem[0].value if problem else 'scheme'})"
+                    break
                 async with asyncio.timeout(self.f.total_timeout):
-                    async with self.client.stream("GET", target) as r:
+                    async with self.client.stream("GET", target, extensions={"pinned_ip": ip}) as r:
                         location = r.headers.get("location") if r.is_redirect else None
                         chunks = bytearray()
                         if not location:
@@ -244,7 +256,7 @@ class Fetcher:
                 if not decision.allowed:
                     return finish(Code.REDIRECT_BLOCKED, f"{decision.code.value}: {decision.detail or current}", "skipped")
             host = urlsplit(current).hostname or ""
-            problem = await self._address_check(host)
+            ip, problem = await self._resolve(host)
             if problem:
                 return finish(problem[0], problem[1], "skipped")
             rules = await self.robots_for(current)
@@ -261,12 +273,12 @@ class Fetcher:
                 return finish(exc.code, str(exc), "skipped")
 
             n += 1
-            attempt, resp = await self._request(current, n, host, rules.crawl_delay, attempts)
+            attempt, resp = await self._request(current, n, host, rules.crawl_delay, attempts, ip)
             status = attempt.http_status
 
-            # transient failures -> retry with backoff
+            # transient failures -> retry with backoff (an access challenge is never transient)
             transient = attempt.failure_code in (Code.NETWORK_TIMEOUT.value, Code.NETWORK_ERROR.value) or (
-                status in RETRYABLE_STATUS)
+                status in RETRYABLE_STATUS and not attempt.failure_code)
             if transient:
                 wait = _retry_after(resp.get("retry_after"))
                 if retries < self.f.max_retries and (wait is None or wait <= self.f.retry_after_cap):
@@ -316,8 +328,8 @@ class Fetcher:
             return finish(code, attempt.detail, http_status=status)
 
     async def _request(self, url: str, n: int, host: str, crawl_delay: float | None,
-                       log: list[Attempt]) -> tuple[Attempt, dict]:
-        attempt = Attempt(n, url, "failure")
+                       log: list[Attempt], ip: str) -> tuple[Attempt, dict]:
+        attempt = Attempt(n, url, "failure", connected_ip=ip)
         log.append(attempt)  # recorded before the request is sent
         info: dict = {}
         async with self._global, self._hosts[host]:
@@ -325,7 +337,7 @@ class Fetcher:
             start = time.monotonic()
             try:
                 async with asyncio.timeout(self.f.total_timeout):
-                    async with self.client.stream("GET", url) as r:
+                    async with self.client.stream("GET", url, extensions={"pinned_ip": ip}) as r:
                         attempt.http_status = r.status_code
                         ctype = r.headers.get("content-type", "")
                         attempt.content_type = ctype or None
@@ -333,6 +345,10 @@ class Fetcher:
                         info["location"] = r.headers.get("location")
                         if 200 <= r.status_code < 300:
                             await self._read_body(r, ctype, attempt, info)
+                        elif r.status_code in (403, 429, 503):
+                            await self._check_challenge(r, attempt)
+            except PinningError as exc:  # policy refusal at connect time: final, never retried
+                attempt.failure_code, attempt.detail = Code.CONNECTION_POLICY_REFUSED.value, str(exc)[:200]
             except (TimeoutError, httpx.TimeoutException) as exc:
                 attempt.failure_code, attempt.detail = Code.NETWORK_TIMEOUT.value, type(exc).__name__
             except httpx.TransportError as exc:
@@ -340,8 +356,28 @@ class Fetcher:
             attempt.elapsed_ms = int((time.monotonic() - start) * 1000)
         return attempt, info
 
+    async def _check_challenge(self, r: httpx.Response, attempt: Attempt) -> None:
+        """403/429/503 may be a bot interstitial: read a small, budgeted sample to classify it precisely."""
+        sample = bytearray()
+        if r.headers.get("cf-mitigated", "").lower() != "challenge":
+            async for chunk in r.aiter_bytes():
+                sample.extend(chunk)
+                if len(sample) >= 65_536:
+                    break
+            self.budget.record("bytes", len(sample))
+            attempt.bytes = len(sample)
+        html = bytes(sample).decode("utf-8", errors="replace")
+        title = re.search(r"<title[^>]*>(.*?)</title>", html, re.I | re.S)
+        reason = challenge.detect(headers=dict(r.headers), html=html,
+                                  title=title.group(1).strip() if title else None, text_chars=len(html))
+        if reason:
+            attempt.failure_code, attempt.detail = Code.ACCESS_CHALLENGE.value, f"HTTP {r.status_code}; {reason}"
+
     async def _read_body(self, r: httpx.Response, ctype: str, attempt: Attempt, info: dict) -> None:
         ct = ctype.split(";")[0].strip().lower()
+        if ct == "application/pdf":
+            attempt.failure_code, attempt.detail = Code.UNSUPPORTED_PDF.value, "application/pdf (not downloaded)"
+            return
         if any(ct.startswith(t) for t in REJECT_TYPES):
             attempt.failure_code, attempt.detail = Code.UNSUPPORTED_CONTENT_TYPE.value, ct
             return
@@ -364,6 +400,9 @@ class Fetcher:
                 attempt.failure_code, attempt.detail = Code.BUDGET_BYTES.value, f"run byte budget exhausted at {limit}"
             else:
                 attempt.failure_code, attempt.detail = Code.RESPONSE_TOO_LARGE.value, f"> {limit} bytes"
+            return
+        if bytes(body[:5]) == b"%PDF-":  # PDF served under a generic or wrong content type
+            attempt.failure_code, attempt.detail = Code.UNSUPPORTED_PDF.value, f"PDF signature under {ct or 'no type'}"
             return
         route = route_for(ctype, bytes(body[:2048]))
         if route is None:

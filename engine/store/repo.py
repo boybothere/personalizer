@@ -144,10 +144,10 @@ def add_robots_check(conn: sqlite3.Connection, run_id: str, origin: str, http_st
 def add_attempt(conn: sqlite3.Connection, run_id: str, url_id: int, a: dict) -> int:
     cur = conn.execute(
         "INSERT INTO fetch_attempts (run_id, url_id, attempt_no, request_url, outcome, http_status, content_type,"
-        " bytes, elapsed_ms, failure_code, detail, started_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+        " bytes, elapsed_ms, failure_code, detail, started_at, connected_ip) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
         (run_id, url_id, a["attempt_no"], a["request_url"], a["outcome"], a.get("http_status"),
          a.get("content_type"), a.get("bytes", 0), a.get("elapsed_ms"), a.get("failure_code"), a.get("detail"),
-         a.get("started_at") or iso()),
+         a.get("started_at") or iso(), a.get("connected_ip")),
     )
     return cur.lastrowid
 

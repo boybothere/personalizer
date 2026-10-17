@@ -11,6 +11,7 @@ from tld import get_fld
 
 from .config import Platforms as PlatformSwitches
 from .failures import Code
+from .fetch.netpolicy import is_noncanonical_numeric, is_public_ip
 from .platforms import Mode, connector_enabled, is_excluded, platform_for
 
 TRACKING_PARAMS = {
@@ -94,9 +95,11 @@ def static_policy(raw: str, canonical: CanonicalURL | None, switches: PlatformSw
         return PolicyDecision(False, Code.URL_UNSUPPORTED_SCHEME, parts.scheme)
     if parts.username or parts.password:
         return PolicyDecision(False, Code.URL_CREDENTIALS)
+    if is_noncanonical_numeric(canonical.domain):
+        return PolicyDecision(False, Code.URL_NONCANONICAL_HOST, canonical.domain)
     try:
         ip = ipaddress.ip_address(canonical.domain.strip("[]"))
-        if not ip.is_global:
+        if not is_public_ip(ip):
             return PolicyDecision(False, Code.URL_PRIVATE_ADDRESS, str(ip))
     except ValueError:
         if canonical.domain in {"localhost"} or canonical.domain.endswith((".localhost", ".local", ".internal")):

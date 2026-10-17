@@ -67,7 +67,7 @@ from engine.retrieval import Retriever, Lead
 from engine.fetch.client import StaticResolver
 hosts = []
 def handler(req):
-    hosts.append(req.url.host)
+    hosts.append(req.headers["host"])  # connections are pinned to the IP; Host carries the name
     if req.url.path == "/robots.txt":
         return httpx.Response(404)
     return httpx.Response(200, html="<html><body><article><p>" + "Plain public text. " * 30 + "</p></article></body></html>")

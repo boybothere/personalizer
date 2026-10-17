@@ -12,6 +12,8 @@ class Code(str, Enum):
     URL_CREDENTIALS = "URL_CREDENTIALS"
     URL_PRIVATE_ADDRESS = "URL_PRIVATE_ADDRESS"
     URL_DNS_FAILURE = "URL_DNS_FAILURE"
+    URL_NONCANONICAL_HOST = "URL_NONCANONICAL_HOST"
+    CONNECTION_POLICY_REFUSED = "CONNECTION_POLICY_REFUSED"
     URL_EXCLUDED_DOMAIN = "URL_EXCLUDED_DOMAIN"
     URL_PLATFORM_DISCOVERY_ONLY = "URL_PLATFORM_DISCOVERY_ONLY"
     URL_PLATFORM_CONNECTOR_ONLY = "URL_PLATFORM_CONNECTOR_ONLY"
@@ -32,6 +34,8 @@ class Code(str, Enum):
     TOO_MANY_REDIRECTS = "TOO_MANY_REDIRECTS"
     RESPONSE_TOO_LARGE = "RESPONSE_TOO_LARGE"
     UNSUPPORTED_CONTENT_TYPE = "UNSUPPORTED_CONTENT_TYPE"
+    UNSUPPORTED_PDF = "UNSUPPORTED_PDF"
+    ACCESS_CHALLENGE = "ACCESS_CHALLENGE"
     # extraction
     DECODE_ERROR = "DECODE_ERROR"
     EXTRACTION_EMPTY = "EXTRACTION_EMPTY"
@@ -80,6 +84,8 @@ EXPLANATIONS: dict[Code, str] = {
     Code.URL_CREDENTIALS: "URLs containing credentials are never requested.",
     Code.URL_PRIVATE_ADDRESS: "The host resolves to a private, loopback or otherwise non-public address.",
     Code.URL_DNS_FAILURE: "The host name could not be resolved.",
+    Code.URL_NONCANONICAL_HOST: "The host is a non-canonical numeric address (decimal, hex, octal or shorthand IPv4); resolvers disagree on these, so they are never requested.",
+    Code.CONNECTION_POLICY_REFUSED: "The pinning layer refused the connection (no pinned address, a non-public pinned address, or the socket peer differed from the checked address).",
     Code.URL_EXCLUDED_DOMAIN: "The domain is excluded by policy (people-search, data broker, leak or records site).",
     Code.URL_PLATFORM_DISCOVERY_ONLY: "The platform permits no automated page access and has no enabled content route; "
                                       "the URL is kept as a lead only.",
@@ -101,6 +107,8 @@ EXPLANATIONS: dict[Code, str] = {
     Code.TOO_MANY_REDIRECTS: "More redirects than allowed.",
     Code.RESPONSE_TOO_LARGE: "The response exceeded the per-page size limit.",
     Code.UNSUPPORTED_CONTENT_TYPE: "The content type is not supported in this phase (supported: HTML, XHTML, RSS/Atom, plain text).",
+    Code.UNSUPPORTED_PDF: "The resource is a PDF; PDF text extraction is not supported in this phase (not downloaded).",
+    Code.ACCESS_CHALLENGE: "The site served a bot-protection or captcha interstitial. This is an access control: it is never retried, solved or bypassed (no provider-text fallback).",
     Code.DECODE_ERROR: "The response body could not be decoded as text.",
     Code.EXTRACTION_EMPTY: "The page was retrieved but no main text could be extracted.",
     Code.TEXT_TOO_SHORT: "The extracted main text is shorter than the usable minimum.",
@@ -153,7 +161,7 @@ NATURAL_STOPS = {Code.PLAN_RESOLVED, Code.DIMINISHING_RETURNS}
 # "Blocked or inaccessible": we deliberately did not, or were not allowed to, obtain the content.
 BLOCKED_CODES = {Code.URL_PLATFORM_DISCOVERY_ONLY, Code.URL_PLATFORM_CONNECTOR_ONLY, Code.URL_PLATFORM_UNAVAILABLE,
                  Code.URL_EXCLUDED_DOMAIN, Code.ROBOTS_DISALLOWED, Code.ROBOTS_UNREACHABLE,
-                 Code.HTTP_ACCESS_CONTROLLED}
+                 Code.HTTP_ACCESS_CONTROLLED, Code.ACCESS_CHALLENGE, Code.URL_NONCANONICAL_HOST}
 
 
 def explain(code: str | Code | None) -> str | None:

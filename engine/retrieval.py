@@ -219,9 +219,11 @@ class Retriever:
         """Provider-supplied page text, only after a technical failure of our own fetch/extraction (D3.3)."""
         # Defence in depth: never after any robots/access/policy outcome on this URL.
         blocked = self.conn.execute(
-            "SELECT 1 FROM fetch_attempts WHERE url_id=? AND failure_code IN (?,?,?,?)",
+            "SELECT 1 FROM fetch_attempts WHERE url_id=? AND failure_code IN (?,?,?,?,?,?) UNION "
+            "SELECT 1 FROM documents WHERE url_id=? AND failure_code=?",
             (url_id, Code.ROBOTS_DISALLOWED.value, Code.ROBOTS_UNREACHABLE.value, Code.HTTP_ACCESS_CONTROLLED.value,
-             Code.REDIRECT_BLOCKED.value)).fetchone()
+             Code.REDIRECT_BLOCKED.value, Code.ACCESS_CHALLENGE.value, Code.CONNECTION_POLICY_REFUSED.value,
+             url_id, Code.ACCESS_CHALLENGE.value)).fetchone()
         if blocked:
             repo.trace(self.conn, run_id, "fallback", "refused", ref_type="url", ref_id=url_id,
                        reason="robots/access-control outcome on this URL")

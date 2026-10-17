@@ -18,6 +18,7 @@ from lxml import etree
 
 from ..config import ExtractSettings
 from ..failures import Code
+from ..fetch import challenge
 from . import dates
 from .textutil import has_invisible, normalize, sha256, simhash
 
@@ -202,7 +203,11 @@ def extract_html(body: bytes, url: str, content_type: str | None, cfg: ExtractSe
                   "jsonld_types": sorted({str(o.get("@type")) for o in jsonld if o.get("@type")}),
                   "og_type": meta.get("og:type")},
     )
-    if not text:
+    reason = challenge.detect(html=html, title=title, text_chars=len(text))
+    if reason:  # an access control, not a technical failure: never eligible for the provider fallback
+        result.failure_code = Code.ACCESS_CHALLENGE.value
+        result.flags.append(f"access_challenge:{reason[:60]}")
+    elif not text:
         result.failure_code = (Code.JS_REQUIRED if _looks_js_only(body, html, cfg) else Code.EXTRACTION_EMPTY).value
     elif len(text) < cfg.min_usable_chars:
         result.failure_code = (Code.JS_REQUIRED if _looks_js_only(body, html, cfg) else Code.TEXT_TOO_SHORT).value

@@ -8,7 +8,7 @@ import json
 from datetime import date
 
 import httpx
-from conftest import RecordingSleep, make_cfg
+from conftest import RecordingSleep, make_cfg, orig_url
 
 from engine.fetch.client import StaticResolver
 from engine.plan import ResearchInput
@@ -77,7 +77,7 @@ class World:
     def web(self, request: httpx.Request):
         if request.url.path == "/robots.txt":
             return httpx.Response(200, text=self.robots)
-        url = str(request.url)
+        url = orig_url(request)
         self.page_requests.append(url)
         route = self.pages.get(url, httpx.Response(404))
         return route(request) if callable(route) else route  # async handlers return a coroutine; httpx awaits it

@@ -34,8 +34,12 @@ def metrics(conn: sqlite3.Connection, run_id: str) -> dict:
         WHERE fa.run_id=? AND fa.id = (SELECT MAX(id) FROM fetch_attempts WHERE url_id = fa.url_id)
         GROUP BY 1""", r)
     fetch_failures = {k: v for k, v in final.items() if k != "OK"}
-    blocked = {k: v for k, v in {**url_rejects, **fetch_failures}.items() if k in {c.value for c in BLOCKED_CODES}}
     doc_fail = _by(conn, "SELECT failure_code, COUNT(*) FROM documents WHERE run_id=? AND usable=0 GROUP BY 1", r)
+    blocked: dict[str, int] = {}
+    for source in (url_rejects, fetch_failures, doc_fail):
+        for k, v in source.items():
+            if k in {c.value for c in BLOCKED_CODES}:
+                blocked[k] = blocked.get(k, 0) + v
     stages = {row["stage"]: row["s"] for row in conn.execute(
         "SELECT stage, ROUND(SUM(seconds), 3) AS s FROM stage_events WHERE run_id=? GROUP BY stage", (r,))}
     usable_docs = _one(conn, "SELECT COUNT(*) FROM documents WHERE run_id=? AND usable=1", r)
@@ -87,6 +91,11 @@ def metrics(conn: sqlite3.Connection, run_id: str) -> dict:
             "with_published_date": _one(conn, "SELECT COUNT(*) FROM documents WHERE run_id=? AND published_at IS NOT NULL", r),
             "date_sources": _by(conn, "SELECT published_source, COUNT(*) FROM documents WHERE run_id=? GROUP BY 1", r),
             "date_conflicts": _one(conn, "SELECT COUNT(*) FROM documents WHERE run_id=? AND date_conflict=1", r),
+            "metadata_coverage_of_usable": {
+                field: _one(conn, f"SELECT COUNT(*) FROM documents WHERE run_id=? AND usable=1 AND {field} IS NOT NULL"
+                                  f" AND {field} != ''", r)
+                for field in ("title", "author", "language", "canonical_link", "published_at", "site_name")},
+            "usable_rate_of_retrieved_pages": _usable_rate(conn, r),
             "flags": _by(conn, """SELECT CASE WHEN instr(j.value, ':') > 0 THEN substr(j.value, 1, instr(j.value, ':') - 1)
                                          ELSE j.value END, COUNT(*)
                                   FROM documents d, json_each(d.flags_json) j WHERE d.run_id=? GROUP BY 1""", r),
@@ -104,6 +113,15 @@ def metrics(conn: sqlite3.Connection, run_id: str) -> dict:
             "by_provider": _by(conn, "SELECT provider, COUNT(*) FROM provider_usage WHERE run_id=? GROUP BY 1", r),
         },
     }
+
+
+def _usable_rate(conn: sqlite3.Connection, r: str) -> float | None:
+    """Share of successfully retrieved URLs that produced at least one usable document."""
+    row = conn.execute("""SELECT COUNT(DISTINCT fa.url_id),
+                                 COUNT(DISTINCT CASE WHEN EXISTS (SELECT 1 FROM documents d WHERE d.url_id = fa.url_id
+                                                                  AND d.usable = 1) THEN fa.url_id END)
+                          FROM fetch_attempts fa WHERE fa.run_id = ? AND fa.outcome = 'success'""", (r,)).fetchone()
+    return round(row[1] / row[0], 3) if row[0] else None
 
 
 def _has_table(conn: sqlite3.Connection, name: str) -> bool:

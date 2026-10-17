@@ -297,10 +297,19 @@ DROP TABLE planner_decisions;
 DROP TABLE research_objectives
 """
 
+M0004_UP = """
+ALTER TABLE fetch_attempts ADD COLUMN connected_ip TEXT
+"""
+
+M0004_DOWN = """
+ALTER TABLE fetch_attempts DROP COLUMN connected_ip
+"""
+
 MIGRATIONS: list[Migration] = [
     Migration(1, "observability_and_retrieval", M0001_UP, M0001_DOWN),
     Migration(2, "search_layer_and_provider_ledger", M0002_UP, M0002_DOWN),
     Migration(3, "adaptive_planner", M0003_UP, M0003_DOWN),
+    Migration(4, "fetch_connected_ip", M0004_UP, M0004_DOWN),
 ]
 
 _BOOKKEEPING = """CREATE TABLE IF NOT EXISTS schema_migrations (

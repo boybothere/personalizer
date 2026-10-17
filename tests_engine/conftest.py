@@ -32,6 +32,17 @@ def pytest_collection_modifyitems(config, items):
             item.add_marker(skip)
 
 
+def orig_host(request: httpx.Request) -> str:
+    """Hostname the client meant. The fetcher pins connections to the checked IP (request.url carries the
+    IP); the real hostname travels in the Host header, exactly as a real server would see it."""
+    return request.headers.get("host", request.url.host).split(":")[0]
+
+
+def orig_url(request: httpx.Request) -> str:
+    query = f"?{request.url.query.decode()}" if request.url.query else ""
+    return f"{request.url.scheme}://{request.headers.get('host', request.url.host)}{request.url.path}{query}"
+
+
 def make_cfg(**budget) -> EngineConfig:
     cfg = EngineConfig(contact="tests@example.org")
     cfg.fetch.min_host_interval = 0
@@ -57,13 +68,13 @@ class Site:
             if isinstance(self.robots, httpx.Response):
                 return self.robots
             return httpx.Response(404) if self.robots is None else httpx.Response(200, text=self.robots)
-        route = self.routes.get(f"{request.url.host}{key}") or self.routes.get(key) or self.routes.get(request.url.path)
+        route = self.routes.get(f"{orig_host(request)}{key}") or self.routes.get(key) or self.routes.get(request.url.path)
         if route is None:
             return httpx.Response(404)
         return route(request) if callable(route) else route
 
     def content_requests(self) -> list[str]:
-        return [str(r.url) for r in self.requests if r.url.path != "/robots.txt"]
+        return [orig_url(r) for r in self.requests if r.url.path != "/robots.txt"]
 
 
 class RecordingSleep:
