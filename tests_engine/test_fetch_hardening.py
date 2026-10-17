@@ -379,7 +379,8 @@ def test_migration_0004_on_a_copy_preserves_existing_records(tmp_path):
         connect(copy)
     conn = connect(copy, upgrade=False)
     runs = [r[0] for r in conn.execute("SELECT id FROM runs")]
-    strip = lambda m: {k: v for k, v in m.items() if k != "planner"}  # noqa: E731
+    # sections introduced by later migrations report "unavailable" with a schema-dependent reason
+    strip = lambda m: {k: v for k, v in m.items() if k not in ("planner", "identity")}  # noqa: E731
     before = {r: strip(metrics(conn, r)) for r in runs}
     steps = migrate(conn)
     assert "up 4 fetch_connected_ip" in steps
