@@ -392,3 +392,25 @@ def test_migration_0004_on_a_copy_preserves_existing_records(tmp_path):
     migrate(conn, 2)
     conn.close()
     assert hashlib.sha256(LOCAL_DB.read_bytes()).hexdigest() == original_hash
+
+
+# ---------------------------------------------------------------- fetch-trace (in-memory)
+
+
+def test_fetch_trace_reports_each_url_without_storing_anything():
+    from engine.fetch_trace import render, trace
+
+    site = Site({"/a": httpx.Response(301, headers={"location": "/b"}), "/b": httpx.Response(200, html=article()),
+                 "/c": httpx.Response(200, html=CF_200)})
+    before = hashlib.sha256(LOCAL_DB.read_bytes()).hexdigest() if LOCAL_DB.exists() else None
+    t = trace(["https://news.example/a", "https://news.example/c", "http://127.0.0.1/x"], make_cfg(),
+              transport=httpx.MockTransport(site), resolver=StaticResolver(), sleep=RecordingSleep(), today=TODAY)
+    a, c, local = t["urls"]
+    assert [x["outcome"] for x in a["attempts"]] == ["redirect", "success"]
+    assert a["attempts"][0]["connected_ip"] == "93.184.216.34" and a["documents"][0]["usable"]
+    assert c["documents"][0]["failure_code"] == "ACCESS_CHALLENGE"
+    assert local["policy_code"] == "URL_PRIVATE_ADDRESS" and "attempts" in local and local["attempts"] == []
+    text = render(t)
+    assert "via 93.184.216.34" in text and "ACCESS_CHALLENGE" in text
+    if before:
+        assert hashlib.sha256(LOCAL_DB.read_bytes()).hexdigest() == before

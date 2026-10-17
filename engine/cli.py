@@ -8,6 +8,7 @@
   python -m engine search --specs-file specs.json [...]
   python -m engine research --name N --purpose P [--org O] [--org-domain D] [--role R] [--location L]
                             [--known-url U] [--focus TOPIC] [--dry-run] [--json]
+  python -m engine fetch-trace URL [URL ...] [--json]   # per-URL fetch trace, in-memory, nothing stored
   python -m engine ledger            # this month's provider usage vs free-allowance caps (local record)
   python -m engine providers         # capabilities, terms-derived storage policy, pricing
   python -m engine tavily-usage      # Tavily's own account usage counter (read-only)
@@ -95,6 +96,9 @@ def main(argv: list[str] | None = None) -> int:
     rs.add_argument("--dry-run", action="store_true", help="show the plan; no network, nothing stored")
     rs.add_argument("--json", action="store_true")
     rs.add_argument("--label")
+    ft = sub.add_parser("fetch-trace", help="trace fetching of URLs (in-memory; nothing stored)")
+    ft.add_argument("urls", nargs="+")
+    ft.add_argument("--json", action="store_true")
     sub.add_parser("ledger")
     sub.add_parser("providers")
     sub.add_parser("tavily-usage")
@@ -117,6 +121,12 @@ def main(argv: list[str] | None = None) -> int:
                 raise SystemExit("downgrade requires an explicit --to VERSION (it drops tables)")
             print(migrate(conn, args.to))
         return 0
+    if args.cmd == "fetch-trace":  # in-memory database: never opens or migrates data/engine.db
+        from .fetch_trace import render, trace
+
+        t = trace(args.urls, cfg)
+        print(json.dumps(t, indent=2, default=str) if args.json else render(t))
+        return 0 if t["run_status"] != "failed" else 1
     if args.cmd == "research" and args.dry_run:  # plan preview: no network, no database
         from .plan import ResearchInput
         from .policy import PolicyViolation
