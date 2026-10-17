@@ -47,8 +47,12 @@ def _grams(words: list[str], n: int) -> set[tuple[str, ...]]:
 
 
 def group(docs: list[Doc], *, passage_words: int = 12, shingle_ratio: float = 0.15, shingle_min: int = 4,
-          quote_words: int = 8) -> dict[str, tuple[str, list[dict]]]:
-    """Return {doc_id: (origin_group_id, reasons)}. The group id is the earliest document (input order)."""
+          quote_words: int = 8, ignore_words: frozenset[str] = frozenset()) -> dict[str, tuple[str, list[dict]]]:
+    """Return {doc_id: (origin_group_id, reasons)}. The group id is the earliest document (input order).
+
+    `ignore_words` (the subject's name): 5-word shingles containing them are left out of the overlap ratio, so a
+    "Name, title at Organisation" phrase that independent outlets all repeat is not taken as copying. Shared
+    12-word passages and quotes still count in full."""
     ids = [d.id for d in docs]
     order = {d: i for i, d in enumerate(ids)}
     parent = {d: d for d in ids}
@@ -108,7 +112,7 @@ def group(docs: list[Doc], *, passage_words: int = 12, shingle_ratio: float = 0.
     # text reuse: shared passages, shingle overlap, shared quotes
     words = {d.id: _WORD.findall((d.text or "").lower()) for d in docs}
     long_grams = {i: _grams(w, passage_words) for i, w in words.items()}
-    shingles = {i: _grams(w, 5) for i, w in words.items()}
+    shingles = {i: {g for g in _grams(w, 5) if not ignore_words & set(g)} for i, w in words.items()}
     quotes = {d.id: {" ".join(q) for m in QUOTE.finditer(d.text or "")
                      if len(q := _WORD.findall(m.group(1).lower())) >= quote_words} for d in docs}
     for x in range(len(ids)):
@@ -116,18 +120,16 @@ def group(docs: list[Doc], *, passage_words: int = 12, shingle_ratio: float = 0.
             a, b = ids[x], ids[y]
             if long_grams[a] & long_grams[b]:
                 link(a, b, "shared_passage")
-                continue
             shared = len(shingles[a] & shingles[b])
             smaller = min(len(shingles[a]), len(shingles[b]))
             if smaller and shared >= shingle_min and shared / smaller >= shingle_ratio:
                 link(a, b, "shared_shingles")
-                continue
             if quotes[a] & quotes[b]:
                 link(a, b, "shared_quote")
     return {d: (find(d), reasons[d]) for d in ids}
 
 
-def compute(conn: sqlite3.Connection, run_id: str, settings=None) -> dict[str, str]:
+def compute(conn: sqlite3.Connection, run_id: str, settings=None, ignore_words=frozenset()) -> dict[str, str]:
     """Compute and store origin groups for a run's usable documents (replacing earlier rows)."""
     rows = conn.execute("""SELECT d.id, d.source_url, d.text, d.canonical_link, d.duplicate_of, d.author, d.site_name,
                                   d.metadata_json, u.registrable_domain
@@ -140,7 +142,7 @@ def compute(conn: sqlite3.Connection, run_id: str, settings=None) -> dict[str, s
     if settings is not None:
         kw = dict(passage_words=settings.shared_passage_words, shingle_ratio=settings.shared_shingle_ratio,
                   shingle_min=settings.shared_shingle_min, quote_words=settings.shared_quote_words)
-    groups = group(docs, **kw)
+    groups = group(docs, ignore_words=frozenset(w.lower() for w in ignore_words), **kw)
     conn.execute("DELETE FROM origin_groups WHERE run_id=?", (run_id,))
     for doc_id, (gid, why) in groups.items():
         conn.execute("INSERT INTO origin_groups (document_id, run_id, origin_group, reasons_json, rule_version)"

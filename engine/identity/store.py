@@ -46,8 +46,12 @@ def resolve_run(conn: sqlite3.Connection, run_id: str, subject: Subject, today: 
                                 duplicate_of=d["duplicate_of"], title=d["title"], text=d["text"],
                                 metadata=json.loads(d["metadata_json"]) if d["metadata_json"] else {},
                                 subject=subject, origin_group=groups.get(d["id"])))
+    expired = {e.doc_id for e in evidence if not e.text_available}
+    carried = {r["target_ref"]: (r["status"], r["candidate_key"]) for r in conn.execute(
+        "SELECT target_ref, status, candidate_key FROM identity_decisions WHERE run_id=? AND target_type='document'"
+        " AND decided_by='rules' AND superseded_by IS NULL", (run_id,)) if r["target_ref"] in expired}
     result = resolve(subject, evidence, leads=_profile_leads(conn, run_id, subject),
-                     overrides=active_overrides(conn, run_id), today=today)
+                     overrides=active_overrides(conn, run_id), today=today, carried=carried)
     return save(conn, run_id, result)
 
 

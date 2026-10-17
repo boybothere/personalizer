@@ -87,8 +87,11 @@ EXTRA_PLACES = {
     "maldives", "hong kong", "seoul", "beijing", "shanghai", "kilimanjaro", "everest", "himalayas", "western ghats"}
 
 
+COUNTRY_CODES = re.compile(r"\b(US|USA|UK|UAE)\b")  # case-sensitive: "us" is a pronoun
+
+
 def _places(location: str | None) -> set[str]:
-    return PLACES | EXTRA_PLACES | ({location.lower()} if location else set())
+    return (PLACES | EXTRA_PLACES | ({location.lower()} if location else set())) - {"us", "uk", "usa"}
 
 
 def _past_year(sentence: str, today: date) -> bool:
@@ -106,7 +109,8 @@ def classify(sentence: str, today: date, location: str | None = None) -> str | N
     if any(p.search(sentence) for p in WHEREABOUTS):
         return "whereabouts"
     low = sentence.lower()
-    named_place = any(re.search(rf"\b{re.escape(p)}\b", low) for p in _places(location))
+    named_place = any(re.search(rf"\b{re.escape(p)}\b", low) for p in _places(location)) or \
+        bool(COUNTRY_CODES.search(sentence))
     if TIME_NOW.search(sentence) and (PRESENCE.search(sentence) or named_place):
         return "whereabouts"  # current or upcoming presence somewhere
     if TRAVEL.search(sentence) and (named_place or TRAVEL_PLACE.search(sentence)) and not _past_year(sentence, today):

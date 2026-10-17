@@ -201,9 +201,13 @@ PROFILE_RANK = {"rejected": 0, "duplicate_unresolved": 1, "possible": 2, "strong
 
 
 def resolve(subject: Subject, evidence: list[DocEvidence], *, leads: list[str] | None = None,
-            overrides: dict[str, str] | None = None, today: date | None = None) -> Resolution:
+            overrides: dict[str, str] | None = None, today: date | None = None,
+            carried: dict[str, tuple[str, str]] | None = None) -> Resolution:
+    """`carried`: earlier rule decisions (status, candidate) for documents whose text has since expired. They are
+    carried forward instead of collapsing to 'insufficient', so re-resolution after expiry keeps what was known."""
     today = today or date.today()
     overrides = overrides or {}
+    carried = carried or {}
     by_id = {e.doc_id: e for e in evidence}
     known = {k for u in subject.known_urls if (k := profile_key(u))}
     # pass 1: documents with only user-anchored profiles; pass 2: with profiles confirmed by pass-1 anchors
@@ -212,6 +216,9 @@ def resolve(subject: Subject, evidence: list[DocEvidence], *, leads: list[str] |
                                for l in by_id[dd.doc_id].profile_links if (k := profile_key(l))}
     docs = [attribute(e, subject, confirmed_links) for e in evidence]
     for dd in docs:
+        if dd.doc_id in carried and not by_id[dd.doc_id].text_available:
+            dd.status, dd.candidate = carried[dd.doc_id]
+            dd.reasons = [f"text expired; earlier rule decision carried forward ({dd.status})"]
         if dd.doc_id in overrides:
             dd.reasons = [f"user override: {dd.status} -> {overrides[dd.doc_id]}"] + dd.reasons
             dd.status, dd.decided_by = overrides[dd.doc_id], "user"

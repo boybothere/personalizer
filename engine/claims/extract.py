@@ -35,8 +35,9 @@ DOUBLE_NEG = re.compile(r"\b(I|she|he|they)\s+(don't|don’t|do not|doesn't|does
 VAGUE_OBJECT = {"it", "this", "that", "them", "these", "those", "everything", "something", "anything", "how", "what",
                 "where", "why", "who", "one", "him", "her", "think", "say", "believe", "know", "see"}
 DETERMINERS = {"the", "a", "an", "my", "our", "all", "any", "some", "to", "her", "his", "their"}
-_OBJ_END = re.compile(r"[,.;:!?()\"“”]|\s(?:and I|and she|and he|but|because|since|when|while|which|although|though|"
-                      r"so|with my|whenever|every|on weekends|these days)\b")
+_OBJ_END = re.compile(r"[,.;:!?()\"“”/]|\s(?:and|but|because|since|when|while|which|although|though|"
+                      r"so|with my|whenever|every|on weekends|these days)\b|"
+                      rf"\s(?:in|on|during|back in)\s+(?:(?:{_MONTHS})\.?\s+)?(?:19|20)\d\d\b")
 RUN_WORDS = re.compile(r"\b(marathon|half[- ]marathon|10k|5k|21k|42k|ultra\w*|race|trail run|triathlon|ironman|"
                        r"duathlon)\b", re.I)
 
@@ -79,14 +80,18 @@ EVENT_PREDICATES = {"ran", "spoke_at", "attended", "organised", "mentored_or_tau
 PATTERN_LABELS = {"ran": "taking part in running events", "spoke_at": "speaking at events",
                   "attended": "attending events", "organised": "organising events",
                   "mentored_or_taught": "mentoring or teaching"}
-ASSOC_ROLE = re.compile(r"(?P<tense>is|was|has been|serves as|served as|became|am|'m|’m)?\s*(?:a |an |the )?"
+ASSOC_ROLE = re.compile(r"(?P<tense>is|was|has been|serves as|served as|became|joined as|am|'m|’m)?"
+                        r"(?:\s+(?:also|still|now|currently|already|long|formerly))*\s*(?:a |an |the )?"
                         r"(?:[\w\-]+\s+)?(?P<role>member|fellow|trustee|volunteer|mentor|advisor|adviser|ambassador|"
                         r"patron|sponsor)\s+(?:of|at|with|for)\s+(?P<obj>.+)", re.I)
 ASSOC_BOARD = re.compile(r"(?P<tense>sits on|sat on|joined|is on|was on|serves on|served on|am on|'m on|’m on)\s+"
                          r"the\s+(?:advisory\s+)?board of\s+(?P<obj>.+)", re.I)
 ASSOC_VOLUNTEER = re.compile(r"(?P<tense>volunteers|volunteered|volunteer)\s+(?:with|at|for)\s+(?P<obj>.+)", re.I)
 QUOTE = re.compile(r"[\"“]([^\"”]{3,600})[\"”]")
-FIRST_PERSON = re.compile(r"\b(I|I'm|I’m|I've|I’ve|my|me)\b")
+FIRST_PERSON = re.compile(r"\b(I|I'm|I’m|I've|I’ve|I'd|I’d|[Mm]y|[Mm]e)\b")
+HYPOTHETICAL_FIRST = re.compile(r"(?:^|(?<=[\s,;:(\"“]))(?:I'd|I’d|I would|I'll|I’ll|I will|I might|I may|I could|"
+                                r"I want to|I wanted to|I hope to|I wish I could)\s+(?:really\s+)?"
+                                r"(?P<verb>love|like|enjoy|adore|prefer|try)\b")
 
 
 @dataclass
@@ -151,9 +156,11 @@ def _name_alt(subject: Subject) -> str:
 
 
 def _blank_quotes(s: str, keep: set[int]) -> str:
+    """Blank out quotations (someone else's words). Single-word scare quotes ('I "love" meetings') stay, so the
+    sarcasm marker can be seen."""
     out = s
     for i, m in enumerate(QUOTE.finditer(s)):
-        if i not in keep:
+        if i not in keep and " " in m.group(1).strip():
             out = out[: m.start()] + " " * (m.end() - m.start()) + out[m.end():]
     return out
 
@@ -243,15 +250,23 @@ def _grammar(clause: str, subject: Subject, person: str, doc: DocInput, span, wh
     def cand(ctype, predicate, polarity, rest, past=False, outcome="ok", reason=""):
         obj = _object(rest)
         if obj is None or obj[0].split()[0].lower() in VAGUE_OBJECT or len(obj[0].split()) > 6:
-            if ctype == "stated_preference":
-                outcome, reason = "insufficient", "unclear object (unverified inference)"
-            else:
+            if ctype != "stated_preference":
                 return None
+            if outcome == "ok":
+                outcome, reason = "insufficient", "unclear object (unverified inference)"
             obj = obj or ("(unclear)", "")
         return Candidate(doc.id, ctype, predicate, polarity, obj[0], obj[1], mode, link, span, when, outcome,
                          reason, RULES, past)
 
     # --- preferences
+    dn = re.search(rf"{subj}\s+(?:don't|don’t|do not|doesn't|doesn’t|does not)\s+(?:hate|dislike|mind)\b", clause)
+    if dn or re.search(r"\bnot that (I|she|he|they)\b|\bwouldn't say\b", clause, re.I):
+        rest = clause[dn.end():] if dn else ""
+        return cand("stated_preference", "unclear", None, rest, outcome="rejected",
+                    reason="unclear negation (double negative)")
+    if person == "first" and (h := HYPOTHETICAL_FIRST.search(clause)):
+        return cand("stated_preference", "likes", 1, clause[h.end():], outcome="rejected",
+                    reason="hypothetical or wish, not a current preference")
     pref = None
     m = FAVOURITE.search(clause) if person == "first" else None
     if m:
@@ -264,7 +279,8 @@ def _grammar(clause: str, subject: Subject, person: str, doc: DocInput, span, wh
             pref = (-1 if neg else 1, "dislikes" if neg else "likes", m.group("obj"), m.start())
     if not pref:
         for verb, pol, predicate in prefs:
-            m = re.search(rf"{subj}{_APPOS}{_ADV}\s+(?P<verb>{verb})\b\s+(?P<obj>.+)", clause)
+            # optional scare quotes around the verb are kept so the sarcasm check below can see them
+            m = re.search(rf"{subj}{_APPOS}{_ADV}\s+[\"“‘']?(?P<verb>{verb})\b[\"”’']?\s+(?P<obj>.+)", clause)
             if m:
                 pref = (pol, predicate, m.group("obj"), m.start("verb"))
                 break

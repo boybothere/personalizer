@@ -71,7 +71,7 @@ async def research_run(conn: sqlite3.Connection, cfg: EngineConfig, inp: Researc
                           list(inp.known_urls), list(inp.organization_aliases))
         # origin groups (phase 6): which documents are not independent sources
         with stage(conn, run_id, "origin_groups"):
-            origins.compute(conn, run_id, cfg.claims)
+            origins.compute(conn, run_id, cfg.claims, ignore_words=frozenset({subject.first, subject.last}))
         # identity resolution (phase 5) and claims (phase 6) are advisory; run status is unchanged. They run
         # now, while document text is still inside its retention window.
         with stage(conn, run_id, "identity_resolution"):
