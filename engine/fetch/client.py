@@ -14,6 +14,7 @@ import random
 import re
 import socket
 import time
+import zlib
 from collections import defaultdict
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
@@ -113,6 +114,38 @@ def route_for(content_type: str, head: bytes) -> str | None:
     return None
 
 
+class UnsupportedEncoding(Exception):
+    pass
+
+
+async def bounded_body(r: httpx.Response, limit: int) -> bytes:
+    """Read and decompress at most limit+1 bytes of body. Decompression is incremental with a hard output
+    bound per step, so a small compressed payload cannot expand to an arbitrary size in memory."""
+    encoding = r.headers.get("content-encoding", "identity").lower().strip()
+    if encoding in ("", "identity"):
+        decoder = None
+    elif encoding in ("gzip", "x-gzip", "deflate"):
+        decoder = zlib.decompressobj(47)  # 32+15: auto-detect gzip or zlib header
+    else:
+        raise UnsupportedEncoding(encoding)
+    if r.is_stream_consumed:
+        # In-memory responses (e.g. test transports) arrive already read and decoded by httpx; real network
+        # responses are never pre-read, so they always take the bounded raw path below.
+        return r.content[: limit + 1]
+    out = bytearray()
+    async for raw in r.aiter_raw():
+        if decoder is None:
+            out.extend(raw)
+        else:
+            data = raw
+            while data and len(out) <= limit:
+                out.extend(decoder.decompress(data, limit + 1 - len(out)))
+                data = decoder.unconsumed_tail
+        if len(out) > limit:
+            break
+    return bytes(out)
+
+
 def _retry_after(value: str | None) -> float | None:
     if not value:
         return None
@@ -146,7 +179,9 @@ class Fetcher:
             timeout=httpx.Timeout(self.f.read_timeout, connect=self.f.connect_timeout),
             headers={"User-Agent": cfg.user_agent,
                      "Accept": "text/html,application/xhtml+xml,application/rss+xml,application/atom+xml,"
-                               "application/xml;q=0.9,text/plain;q=0.8"},
+                               "application/xml;q=0.9,text/plain;q=0.8",
+                     # only encodings we decompress ourselves, with a hard output bound (no decompression bombs)
+                     "Accept-Encoding": "gzip, deflate"},
         )
         self._global = asyncio.Semaphore(self.f.global_concurrency)
         self._hosts: dict[str, asyncio.Semaphore] = defaultdict(lambda: asyncio.Semaphore(self.f.per_host_concurrency))
@@ -188,13 +223,13 @@ class Fetcher:
 
     # ------------------------------------------------------------------ robots
 
-    async def robots_for(self, url: str) -> robots_mod.RobotsResult:
+    async def robots_for(self, url: str, ip: str | None = None) -> robots_mod.RobotsResult:
         origin = robots_mod.origin_of(url)
         if origin not in self._robots:
-            self._robots[origin] = asyncio.ensure_future(self._load_robots(origin))
+            self._robots[origin] = asyncio.ensure_future(self._load_robots(origin, ip))
         return await self._robots[origin]
 
-    async def _load_robots(self, origin: str) -> robots_mod.RobotsResult:
+    async def _load_robots(self, origin: str, first_ip: str | None = None) -> robots_mod.RobotsResult:
         try:
             self.budget.charge("robots")
         except BudgetExceeded as exc:
@@ -204,8 +239,11 @@ class Fetcher:
         target, status, body, error = origin + "/robots.txt", None, None, None
         try:
             for hop in range(6):  # RFC 9309: follow at least five redirects
-                # every hop (including the first) is resolved once, checked, and pinned
-                ip, problem = await self._resolve(urlsplit(target).hostname or "")
+                # hop 0 reuses the address already checked and pinned for this origin; redirects resolve once
+                if hop == 0 and first_ip:
+                    ip, problem = first_ip, None
+                else:
+                    ip, problem = await self._resolve(urlsplit(target).hostname or "")
                 if problem or urlsplit(target).scheme not in ("http", "https"):
                     where = "redirected to" if hop else "host is"
                     error = f"robots.txt {where} a disallowed target ({problem[0].value if problem else 'scheme'})"
@@ -259,7 +297,7 @@ class Fetcher:
             ip, problem = await self._resolve(host)
             if problem:
                 return finish(problem[0], problem[1], "skipped")
-            rules = await self.robots_for(current)
+            rules = await self.robots_for(current, ip)
             if not rules.allows(current):
                 code = rules.failure_code or Code.ROBOTS_DISALLOWED
                 if code not in (Code.ROBOTS_UNREACHABLE, Code.BUDGET_ROBOTS):
@@ -358,12 +396,12 @@ class Fetcher:
 
     async def _check_challenge(self, r: httpx.Response, attempt: Attempt) -> None:
         """403/429/503 may be a bot interstitial: read a small, budgeted sample to classify it precisely."""
-        sample = bytearray()
+        sample = b""
         if r.headers.get("cf-mitigated", "").lower() != "challenge":
-            async for chunk in r.aiter_bytes():
-                sample.extend(chunk)
-                if len(sample) >= 65_536:
-                    break
+            try:
+                sample = (await bounded_body(r, 65_536))[:65_536]
+            except UnsupportedEncoding:
+                sample = b""
             self.budget.record("bytes", len(sample))
             attempt.bytes = len(sample)
         html = bytes(sample).decode("utf-8", errors="replace")
@@ -388,11 +426,11 @@ class Fetcher:
             return
         budget_left = int(self.budget.remaining("bytes"))
         limit = min(self.f.max_page_bytes, budget_left)
-        body = bytearray()
-        async for chunk in r.aiter_bytes():
-            body.extend(chunk)
-            if len(body) > limit:
-                break
+        try:
+            body = await bounded_body(r, limit)
+        except UnsupportedEncoding as exc:
+            attempt.failure_code, attempt.detail = Code.UNSUPPORTED_CONTENT_TYPE.value, f"content-encoding {exc}"
+            return
         self.budget.record("bytes", len(body))
         attempt.bytes = len(body)
         if len(body) > limit:
