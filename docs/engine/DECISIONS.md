@@ -87,6 +87,18 @@ Evidence for platform claims is in [PLATFORMS.md](PLATFORMS.md); every probe the
 | D8.6 | **No preference inference in planning:** focus topics produce neutral queries (the topic word only; no "love/favourite/enjoy" wording). Planner outputs are queries and documents, never preferences (phase 6). | Decided |
 | D8.7 | Scoring weights and windows are **uncalibrated defaults**, to be evaluated on consented subjects before relying on them. | Noted |
 
+## D9 Fetch hardening (phase 4)
+
+| # | Decision | Status |
+|---|---|---|
+| D9.1 | **Pinned connections:** each hop resolves once; every answer must be public; the request connects to the checked IP, with Host/SNI and certificate verification on the hostname. Requests without a pinned IP are refused (fail closed); the socket peer must equal the pinned IP. robots.txt uses the same path. | Decided |
+| D9.2 | **Address policy** in one function (`is_public_ip`): Python `is_global`, plus unwrapping of IPv4-mapped, NAT64, 6to4 and Teredo. **All NAT64 is refused** (conservative). Non-canonical numeric hosts are rejected on every platform. | Decided |
+| D9.3 | **No environment proxies** (`trust_env=False`) and **no keep-alive** (no TLS session reuse across hostnames on one IP). | Decided |
+| D9.4 | **Bot or captcha interstitials are access controls** (`ACCESS_CHALLENGE`): never retried, never solved, **never sent to the provider fallback**, counted as blocked. | Decided |
+| D9.5 | **Bounded decompression:** we accept only gzip and deflate, decoded incrementally with a hard output cap; other encodings are refused. | Decided |
+| D9.6 | **PDFs are reported, not fetched** (`UNSUPPORTED_PDF`), until PDF extraction is approved and built. | Decided |
+| D9.7 | Because challenge detection is pattern-based, **keep the provider-text fallback disabled for real research** until a labelled sample of blocked pages has been reviewed. | Recommendation (needs your decision) |
+
 ## Open items needing your input
 
 1. ⚖ items: X/Reddit terms review; Exa storage terms (D7.1); DPDP legal review (DPDP_ANALYSIS.md).

@@ -12,6 +12,9 @@ This is the deterministic rebuild of the research layer. It makes no LLM calls. 
 | [PHASE3_PLAN.md](PHASE3_PLAN.md) | Phase 3 plan and acceptance criteria |
 | [PHASE3_RESULTS.md](PHASE3_RESULTS.md) | Phase 3: adaptive planner and stopping logic: results, budget behaviour, sample trace |
 | [examples/phase3_trace_synthetic.txt](examples/phase3_trace_synthetic.txt) | Full synthetic planner trace (fictional subject) |
+| [PHASE4_PLAN.md](PHASE4_PLAN.md) | Phase 4 plan and acceptance criteria (fetch hardening) |
+| [PHASE4_RESULTS.md](PHASE4_RESULTS.md) | Phase 4: pinned connections, SSRF/rebinding fixes, challenges, PDF, metrics, live trace |
+| [examples/phase4_fetch_trace_live.txt](examples/phase4_fetch_trace_live.txt) | Live fetch trace (public, non-personal pages) |
 | [DPDP_ANALYSIS.md](DPDP_ANALYSIS.md) | DPDP Act applicability and commencement: **draft for legal review** |
 
 ## Setup
@@ -45,6 +48,7 @@ Configuration is read from environment variables, or from `.env` without changin
 python -m engine db status                      # schema version
 python -m engine db upgrade                     # apply migrations
 python -m engine db downgrade --to 0            # reversible; drops tables, so needs an explicit target
+python -m engine fetch-trace URL [URL ...] [--json]   # per-URL trace; in-memory, nothing stored
 python -m engine retrieve URL [URL ...] [--json]
 python -m engine summary RUN_ID [--trace]       # metrics, gates, URLs, documents, trace
 python -m engine search --purpose WHY --phrase P [--site S] [--fresh N] [--providers tavily] [--no-retrieve]
