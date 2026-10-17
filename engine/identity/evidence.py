@@ -170,9 +170,13 @@ def extract(*, doc_id: str, url: str, domain: str, registrable: str, published_a
                 window = f"{s} {sentences[i + 1]}"
             low = window.lower()
             mention = Mention(window=window[:300])
-            mention.target_org = bool(core and core in low)
             orgs = _orgs_tied_to_name(window, m, subject)
+            attached_target = any(core and (core in o.lower() or o.lower() in core) for o in orgs)
             mention.other_orgs = [o for o in orgs if not (core and (core in o.lower() or o.lower() in core))]
+            # The target counts if it is attached to this name, or merely present in the sentence while no
+            # other organisation is attached ("Priya Raman (Saffron Bakehouse) and Arjun (Nimbus)" is not
+            # evidence for Nimbus).
+            mention.target_org = bool(core and (attached_target or (core in low and not mention.other_orgs)))
             mention.historical = bool(PAST.search(window))
             terms = subject.role_terms
             mention.role_near = bool(terms) and terms <= set(_WORD.findall(low))
