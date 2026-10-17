@@ -280,11 +280,14 @@ def test_rerun_without_identity_change_is_recomputed_not_identity_changed():
     case = _two_source_case()
     conn, rid, _, _ = run_case(case)
     subject = subject_of(case)
+    before = [c["id"] for c in _claims(conn, rid)]
     resolve_run(conn, rid, subject, today=TODAY)
-    update_claims(conn, rid, subject, today=TODAY, settings=SETTINGS)
-    reasons = [r[0] for r in conn.execute("SELECT supersede_reason FROM claims WHERE run_id=? AND superseded_by IS NOT"
-                                          " NULL", (rid,))]
-    assert reasons == ["recomputed"] and len(_claims(conn, rid)) == 1
+    out = update_claims(conn, rid, subject, today=TODAY, settings=SETTINGS)
+    # corrective pass: an unchanged claim keeps its row; nothing is superseded; the run is labelled "recomputed"
+    assert out["reason"] == "recomputed" and out["claims_kept"] == 1 and out["claims_superseded"] == 0
+    assert [c["id"] for c in _claims(conn, rid)] == before
+    assert conn.execute("SELECT COUNT(*) FROM claims WHERE run_id=? AND superseded_by IS NOT NULL",
+                        (rid,)).fetchone()[0] == 0
 
 
 def test_expired_text_means_incomplete_never_invented():

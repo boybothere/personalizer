@@ -60,43 +60,45 @@ def update_claims(conn: sqlite3.Connection, run_id: str, subject: Subject, today
                                   d.date_conflict, d.evidence_kind, d.text_expires_at, u.registrable_domain
                            FROM documents d JOIN urls u ON u.id = d.url_id
                            WHERE d.run_id=? AND d.usable=1 ORDER BY d.created_at, d.id""", (run_id,)).fetchall()
-    prev = conn.execute("SELECT id, gate_signature FROM claims WHERE run_id=? AND superseded_by IS NULL",
+    prev = conn.execute("SELECT * FROM claims WHERE run_id=? AND superseded_by IS NULL ORDER BY id",
                         (run_id,)).fetchall()
+    prev_gate, had_extraction = _previous_gate(conn, run_id)
     if not res["resolved"]:
         n = _supersede(conn, run_id, res["id"], "identity_changed")
         repo.trace(conn, run_id, "claims", "withheld", reason="identity_unresolved",
-                   data={"subject_status": res["status"], "documents": len(rows), "claims_superseded": n})
+                   data={"subject_status": res["status"], "documents": len(rows), "claims_superseded": n, "gate": {}})
         return {"claims": 0, "withheld": "identity_unresolved", "subject_status": res["status"],
                 "claims_superseded": n}
 
     gated = [r for r in rows if statuses.get(r["id"]) in GATED_DOC_STATUSES]
     gated_set = {r["id"] for r in gated}
+    gate = {r["id"]: statuses[r["id"]] for r in gated}
     withheld: dict[str, int] = {}
     for r in rows:
         if r["id"] not in gated_set:
             k = f"document_identity_{statuses.get(r['id'], 'undecided')}"
             withheld[k] = withheld.get(k, 0) + 1
     signature = hashlib.sha256((res["status"] + "|" + ",".join(
-        sorted(f"{r['id']}:{statuses[r['id']]}" for r in gated))).encode()).hexdigest()[:32]
-    prev_sig = prev[0]["gate_signature"] if prev else None
+        sorted(f"{d}:{s}" for d, s in gate.items()))).encode()).hexdigest()[:32]
+    # documents whose identity gate changed since the last extraction (entered, left, or changed status)
+    changed_docs = {d for d in set(gate) | set(prev_gate) if gate.get(d) != prev_gate.get(d)} if had_extraction \
+        else set()
+    prev_fp = {c["id"]: _row_fingerprint(conn, c) for c in prev}
+
+    def affected(claim_id: int) -> bool:
+        fp = prev_fp[claim_id]
+        return fp[8] != res["status"] or bool({e[0] for e in fp[9]} & changed_docs)
+
     expired = [r["id"] for r in gated if r["text"] is None]
     if expired:
-        # cannot re-extract: keep claims that still pass the gate; supersede the ones that depend on a document
-        # that no longer does (dependent-claims policy, §2.4.1)
-        n = 0
-        if prev and prev_sig != signature:
-            gated_ids = {r["id"] for r in gated}
-            bad = [r[0] for r in conn.execute(
-                "SELECT DISTINCT c.id FROM claims c JOIN claim_evidence e ON e.claim_id = c.id WHERE c.run_id=? AND"
-                " c.superseded_by IS NULL AND e.role='supports' AND (e.document_id IS NULL OR e.document_id NOT IN"
-                f" ({','.join('?' * len(gated_ids)) or 'NULL'}))", (run_id, *gated_ids))]
-            n = _supersede(conn, run_id, res["id"], "identity_changed", bad)
+        # cannot re-extract: supersede only the claims the identity change affects (dependent-claims policy,
+        # §2.4.1); claims that do not depend on a changed document stay as they are
+        bad = [cid for cid in prev_fp if affected(cid)]
+        n = _supersede(conn, run_id, res["id"], "identity_changed", bad)
         repo.trace(conn, run_id, "claims", "incomplete", reason="text_expired",
-                   data={"documents_without_text": len(expired), "claims_superseded": n})
+                   data={"documents_without_text": len(expired), "claims_superseded": n, "gate": gate})
         return {"claims": None, "incomplete": "text_expired", "claims_superseded": n}
 
-    reason = "recomputed" if prev_sig == signature else "identity_changed"
-    superseded = _supersede(conn, run_id, res["id"], reason)
     docs: dict[str, DocInput] = {}
     for r in gated:
         url = r["source_url"].rstrip("/").lower()
@@ -116,8 +118,29 @@ def update_claims(conn: sqlite3.Connection, run_id: str, subject: Subject, today
             dropped[k] = dropped.get(k, 0) + v
     claims = build(cands, docs, today, stale,
                    settings.pattern_min_events if settings else 3, settings.pattern_min_years if settings else 2)
-    now = repo.iso()
+
+    # keep unchanged claims (same row, same id); supersede only claims whose result changed; insert the rest
+    unmatched_prev = dict(prev_fp)
+    to_insert = []
     for cl in claims:
+        fp = _new_fingerprint(cl, res["status"])
+        match = next((cid for cid, pfp in unmatched_prev.items() if pfp == fp), None)
+        if match is None:
+            to_insert.append(cl)
+        else:
+            del unmatched_prev[match]
+    new_docs_by_key = {}
+    for cl in to_insert:
+        new_docs_by_key.setdefault(_key(cl.claim_type, cl.predicate, privacy.safe_label(cl.object_key), cl.polarity),
+                                   set()).update(e.doc.id for e in cl.evidence)
+    superseded = {"identity_changed": 0, "recomputed": 0}
+    for cid, fp in unmatched_prev.items():
+        newer = new_docs_by_key.get(_key(fp[0], fp[1], fp[2], fp[3]), set())
+        why = "identity_changed" if affected(cid) or newer & changed_docs else "recomputed"
+        superseded[why] += _supersede(conn, run_id, res["id"], why, [cid])
+    kept = len(prev_fp) - len(unmatched_prev)
+    now = repo.iso()
+    for cl in to_insert:
         cur = conn.execute(
             "INSERT INTO claims (run_id, resolution_id, claim_type, predicate, object_text, object_key, polarity,"
             " attribution_mode, attributed_to, status, confidence, flags_json, reasons_json, origin_groups,"
@@ -142,12 +165,48 @@ def update_claims(conn: sqlite3.Connection, run_id: str, subject: Subject, today
     by_status: dict[str, int] = {}
     for cl in claims:
         by_status[cl.status] = by_status.get(cl.status, 0) + 1
+    if not had_extraction and not prev:
+        reason = "initial"
+    elif changed_docs or any(fp[8] != res["status"] for fp in prev_fp.values()):
+        reason = "identity_changed"
+    else:
+        reason = "recomputed"
+    n_superseded = sum(superseded.values())
     repo.trace(conn, run_id, "claims", "extracted", reason=reason,
                data={"claims": len(claims), "by_status": by_status, "documents_gated": len(gated),
                      "withheld_documents": withheld, "out_of_scope_dropped": dropped,
-                     "mentions_without_claim": no_claim, "claims_superseded": superseded})
+                     "mentions_without_claim": no_claim, "claims_superseded": n_superseded,
+                     "superseded_by_reason": superseded, "claims_kept": kept, "claims_inserted": len(to_insert),
+                     "documents_with_changed_identity": len(changed_docs), "gate": gate})
     return {"claims": len(claims), "by_status": by_status, "withheld_documents": withheld,
-            "out_of_scope_dropped": dropped, "claims_superseded": superseded}
+            "out_of_scope_dropped": dropped, "claims_superseded": n_superseded, "superseded_by_reason": superseded,
+            "claims_kept": kept, "claims_inserted": len(to_insert), "reason": reason}
+
+
+def _key(claim_type, predicate, object_key, polarity) -> tuple:
+    return claim_type, predicate, object_key, polarity
+
+
+def _previous_gate(conn: sqlite3.Connection, run_id: str) -> tuple[dict[str, str], bool]:
+    """Document id -> identity status at the last extraction (ids and status codes only, no text)."""
+    row = conn.execute("SELECT data_json FROM trace_events WHERE run_id=? AND stage='claims' AND action IN"
+                       " ('extracted','withheld','incomplete') ORDER BY id DESC LIMIT 1", (run_id,)).fetchone()
+    if not row:
+        return {}, False
+    return (json.loads(row[0] or "{}").get("gate") or {}), True
+
+
+def _row_fingerprint(conn: sqlite3.Connection, c) -> tuple:
+    ev = conn.execute("SELECT document_id, span_start, role, document_identity_status FROM claim_evidence WHERE"
+                      " claim_id=? ORDER BY document_id, span_start, role", (c["id"],)).fetchall()
+    return (c["claim_type"], c["predicate"], c["object_key"], c["polarity"], c["status"], c["confidence"],
+            c["flags_json"], c["attribution_mode"], c["identity_status"], tuple(tuple(e) for e in ev))
+
+
+def _new_fingerprint(cl, identity_status: str) -> tuple:
+    ev = sorted((e.doc.id, e.cand.span[0], e.role, e.doc.identity_status) for e in cl.evidence)
+    return (cl.claim_type, cl.predicate, privacy.safe_label(cl.object_key), cl.polarity, cl.status, cl.confidence,
+            json.dumps(cl.flags), cl.mode, identity_status, tuple(ev))
 
 
 def active_claims(conn: sqlite3.Connection, run_id: str, with_evidence: bool = True) -> list[dict]:
