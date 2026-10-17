@@ -47,8 +47,14 @@ def record(conn: sqlite3.Connection, provider: str, operation: str, unit: str, u
                  (provider, operation, unit, units, estimated_usd, reported_usd, run_id, iso()))
 
 
+CAVEAT = ("Local engine record of this engine's own requests (per-response usage fields and list-price "
+          "estimates). NOT a verified account balance: Tavily's account counter (GET /usage) did not reflect this "
+          "engine's usage when checked on 2026-10-17 and remains unreconciled; usage made outside this engine is "
+          "invisible here.")
+
+
 def summary(conn: sqlite3.Connection, settings: Providers) -> dict:
-    out = {}
+    out: dict = {"_caveat": CAVEAT}
     for provider in CAP_FIELD:
         cap, unit = cap_for(provider, settings)
         row = conn.execute("""SELECT COUNT(*), COALESCE(SUM(units),0), COALESCE(SUM(estimated_cost_usd),0),

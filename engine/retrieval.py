@@ -80,10 +80,16 @@ class Retriever:
         await self.process(run_id, leads, budget)
         return self.finish(run_id, budget)
 
-    async def process(self, run_id: str, leads: list[Lead], budget: RunBudget) -> None:
-        """Intake, retrieval and near-duplicate marking for `leads`, inside an existing run and budget."""
-        fetcher = Fetcher(self.cfg, budget, resolver=self.resolver, transport=self.transport, sleep=self.sleep,
-                          on_robots=lambda r: self._on_robots(run_id, r), rng=self.rng)
+    def make_fetcher(self, run_id: str, budget: RunBudget) -> Fetcher:
+        return Fetcher(self.cfg, budget, resolver=self.resolver, transport=self.transport, sleep=self.sleep,
+                       on_robots=lambda r: self._on_robots(run_id, r), rng=self.rng)
+
+    async def process(self, run_id: str, leads: list[Lead], budget: RunBudget, fetcher: Fetcher | None = None) -> None:
+        """Intake, retrieval and near-duplicate marking for `leads`, inside an existing run and budget.
+
+        Pass a long-lived `fetcher` when calling repeatedly in one run (robots.txt cache, politeness state)."""
+        own = fetcher is None
+        fetcher = fetcher or self.make_fetcher(run_id, budget)
         try:
             with stage(self.conn, run_id, "intake"):
                 accepted = self._intake(run_id, leads, budget)
@@ -92,7 +98,8 @@ class Retriever:
             with stage(self.conn, run_id, "near_duplicates"):
                 self._mark_near_duplicates(run_id)
         finally:
-            await fetcher.aclose()
+            if own:
+                await fetcher.aclose()
 
     def finish(self, run_id: str, budget: RunBudget, extra_stop: Code | None = None) -> str:
         stop = self.stop or extra_stop
@@ -293,7 +300,8 @@ class Retriever:
 
     def _mark_near_duplicates(self, run_id: str) -> None:
         rows = self.conn.execute("SELECT id, text_sha256, simhash FROM documents WHERE run_id=? AND usable=1"
-                                 " AND simhash IS NOT NULL ORDER BY created_at, id", (run_id,)).fetchall()
+                                 " AND simhash IS NOT NULL AND duplicate_of IS NULL ORDER BY created_at, id",
+                                 (run_id,)).fetchall()  # idempotent across repeated process() calls
         kept: list[sqlite3.Row] = []
         threshold = self.cfg.extract.near_duplicate_hamming
         for row in rows:

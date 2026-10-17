@@ -61,6 +61,12 @@ class Code(str, Enum):
     SEARCH_BAD_RESPONSE = "SEARCH_BAD_RESPONSE"
     SEARCH_PROVIDER_DISABLED = "SEARCH_PROVIDER_DISABLED"
     SEARCH_UNSUPPORTED_SPEC = "SEARCH_UNSUPPORTED_SPEC"
+    # planner stop reasons (phase 3)
+    PLAN_RESOLVED = "PLAN_RESOLVED"
+    DIMINISHING_RETURNS = "DIMINISHING_RETURNS"
+    IDENTITY_UNRESOLVED = "IDENTITY_UNRESOLVED"
+    NO_PROVIDER_AVAILABLE = "NO_PROVIDER_AVAILABLE"
+    PROVIDER_ERRORS = "PROVIDER_ERRORS"
     # run quality gates
     NO_LEADS = "NO_LEADS"
     NO_USABLE_DOCUMENTS = "NO_USABLE_DOCUMENTS"
@@ -123,6 +129,15 @@ EXPLANATIONS: dict[Code, str] = {
     Code.SEARCH_BAD_RESPONSE: "The provider returned a response that could not be parsed.",
     Code.SEARCH_PROVIDER_DISABLED: "The provider was disabled earlier in this run (quota or auth failure).",
     Code.SEARCH_UNSUPPORTED_SPEC: "The provider cannot express this query specification.",
+    Code.PLAN_RESOLVED: "Every objective was covered, saturated or exhausted; the planner stopped naturally. "
+                        "Coverage gaps, if any, are listed per objective.",
+    Code.DIMINISHING_RETURNS: "Recent queries added no new relevant evidence; further searching was judged not "
+                              "worthwhile. Coverage gaps are listed per objective.",
+    Code.IDENTITY_UNRESOLVED: "The identity objective finished without enough supporting evidence to attribute "
+                              "documents to this person; other research was not run.",
+    Code.NO_PROVIDER_AVAILABLE: "No search provider can accept further requests (quota exhausted, free-tier guard, "
+                                "authentication failure or not configured).",
+    Code.PROVIDER_ERRORS: "Several consecutive search requests failed; the run stopped rather than retry blindly.",
     Code.NO_LEADS: "The run had no leads to process.",
     Code.NO_USABLE_DOCUMENTS: "No document yielded usable text; the run cannot support any finding.",
     Code.ALL_FETCHES_FAILED: "Every attempted fetch failed.",
@@ -131,6 +146,9 @@ EXPLANATIONS: dict[Code, str] = {
 
 BUDGET_CODES = {Code.BUDGET_LEADS, Code.BUDGET_SEARCHES, Code.BUDGET_FETCHES, Code.BUDGET_ROBOTS,
                 Code.BUDGET_BYTES, Code.BUDGET_TIME, Code.BUDGET_COST}
+
+# Planner stops that mean "the planner finished by design" (not cut short by a limit or a fault).
+NATURAL_STOPS = {Code.PLAN_RESOLVED, Code.DIMINISHING_RETURNS}
 
 # "Blocked or inaccessible": we deliberately did not, or were not allowed to, obtain the content.
 BLOCKED_CODES = {Code.URL_PLATFORM_DISCOVERY_ONLY, Code.URL_PLATFORM_CONNECTOR_ONLY, Code.URL_PLATFORM_UNAVAILABLE,

@@ -46,8 +46,13 @@ class SearchRunner:
         self.seen: set[str] = set()
         self.stop: Code | None = None
         self._last: dict[str, float] = {}
+        self.last_query_ids: list[int] = []  # search_queries rows written by the most recent execute()
+
+    def available_providers(self) -> list[str]:
+        return [n for n, p in self.providers.items() if p.api_key and n not in self.disabled]
 
     async def execute(self, specs: list[SearchSpec]) -> list[Lead]:
+        self.last_query_ids = []
         leads: list[Lead] = []
         for spec in specs:
             for name, provider in self.providers.items():
@@ -144,6 +149,11 @@ class SearchRunner:
         self._last[name] = time.monotonic()
 
     def _insert(self, base: dict, status: str, **f) -> int:
+        qid = self._insert_row(base, status, **f)
+        self.last_query_ids.append(qid)
+        return qid
+
+    def _insert_row(self, base: dict, status: str, **f) -> int:
         cur = self.conn.execute(
             "INSERT INTO search_queries (run_id, provider, purpose, spec_json, rendered_json, rendering_notes, status,"
             " failure_code, http_status, attempts, latency_ms, results_returned, request_id, storage_policy,"

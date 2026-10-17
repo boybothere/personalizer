@@ -6,7 +6,9 @@
   python -m engine search --purpose WHY [--phrase P] [--term T] [--any A] [--site S] [--exclude-site S]
                           [--fresh DAYS] [--max-results N] [--providers brave,tavily,exa] [--no-retrieve]
   python -m engine search --specs-file specs.json [...]
-  python -m engine ledger            # this month's provider usage vs free-allowance caps
+  python -m engine research --name N --purpose P [--org O] [--org-domain D] [--role R] [--location L]
+                            [--known-url U] [--focus TOPIC] [--dry-run] [--json]
+  python -m engine ledger            # this month's provider usage vs free-allowance caps (local record)
   python -m engine providers         # capabilities, terms-derived storage policy, pricing
   python -m engine tavily-usage      # Tavily's own account usage counter (read-only)
   python -m engine delete-run RUN_ID
@@ -81,6 +83,18 @@ def main(argv: list[str] | None = None) -> int:
     se.add_argument("--no-retrieve", action="store_true")
     se.add_argument("--label")
     se.add_argument("--json", action="store_true")
+    rs = sub.add_parser("research")
+    rs.add_argument("--name", required=True)
+    rs.add_argument("--purpose", required=True)
+    rs.add_argument("--org")
+    rs.add_argument("--org-domain")
+    rs.add_argument("--role")
+    rs.add_argument("--location")
+    rs.add_argument("--known-url", action="append", default=[])
+    rs.add_argument("--focus", action="append", default=[])
+    rs.add_argument("--dry-run", action="store_true", help="show the plan; no network, nothing stored")
+    rs.add_argument("--json", action="store_true")
+    rs.add_argument("--label")
     sub.add_parser("ledger")
     sub.add_parser("providers")
     sub.add_parser("tavily-usage")
@@ -103,7 +117,27 @@ def main(argv: list[str] | None = None) -> int:
                 raise SystemExit("downgrade requires an explicit --to VERSION (it drops tables)")
             print(migrate(conn, args.to))
         return 0
-    conn = connect(cfg.db_path)
+    if args.cmd == "research" and args.dry_run:  # plan preview: no network, no database
+        from .plan import ResearchInput
+        from .policy import PolicyViolation
+        from .research_run import preview
+
+        try:
+            print(json.dumps(preview(ResearchInput(
+                name=args.name, meeting_purpose=args.purpose, organization=args.org,
+                organization_domain=args.org_domain, role=args.role, location=args.location,
+                known_urls=args.known_url, focus_topics=args.focus), cfg), indent=2))
+        except PolicyViolation as exc:
+            print(f"refused: {exc}", file=sys.stderr)
+            return 2
+        return 0
+    from .store.db import SchemaOutdated
+
+    try:
+        conn = connect(cfg.db_path)
+    except SchemaOutdated as exc:
+        print(f"refused: {exc}", file=sys.stderr)
+        return 3
     if args.cmd == "retrieve":
         run_id = asyncio.run(Retriever(conn, cfg).run([Lead(u) for u in args.urls], label=args.label))
         out = summary(conn, run_id)
@@ -147,6 +181,34 @@ def main(argv: list[str] | None = None) -> int:
                       f" reported {pm['cost']['provider_reported_usd']}")
             print("fetch:", json.dumps({k: m["fetch"][k] for k in ("attempts", "urls_retrieved", "urls_failed_by_code")}))
             print("extraction:", json.dumps({k: m["extraction"][k] for k in ("documents", "usable", "failed_by_code")}))
+        return 0 if out["run"]["status"] != "failed" else 1
+    if args.cmd == "research":
+        from .plan import ResearchInput
+        from .policy import PolicyViolation
+        from .research_run import preview, research_run
+
+        inp = ResearchInput(name=args.name, meeting_purpose=args.purpose, organization=args.org,
+                            organization_domain=args.org_domain, role=args.role, location=args.location,
+                            known_urls=args.known_url, focus_topics=args.focus)
+        try:
+            if args.dry_run:
+                print(json.dumps(preview(inp, cfg), indent=2))
+                return 0
+            run_id = asyncio.run(research_run(conn, cfg, inp, label=args.label))
+        except PolicyViolation as exc:
+            print(f"refused: {exc}", file=sys.stderr)
+            return 2
+        out = summary(conn, run_id, with_trace=args.json)
+        out["planner_decisions"] = [dict(r) for r in conn.execute(
+            "SELECT step, objective_key, selection_reason, decision, decision_reason, followups_json, identity_signal"
+            " FROM planner_decisions WHERE run_id=? ORDER BY id", (run_id,))]
+        if args.json:
+            print(json.dumps(out, indent=2, default=str))
+        else:
+            print(f"run {run_id}: {out['run']['status']} ({out['run']['stop_reason']}): {out['stop_explanation']}")
+            for d in out["planner_decisions"]:
+                print(f"  #{d['step']} {d['decision']:8} {d['objective_key'] or '-':22} {d['decision_reason'][:150]}")
+            print("coverage gaps:", out["metrics"]["planner"].get("coverage_gaps"))
         return 0 if out["run"]["status"] != "failed" else 1
     if args.cmd == "ledger":
         from .search import ledger

@@ -12,7 +12,7 @@ import sqlite3
 import time
 from contextlib import contextmanager
 
-from .failures import BLOCKED_CODES, BUDGET_CODES, Code, explain
+from .failures import BLOCKED_CODES, BUDGET_CODES, NATURAL_STOPS, Code, explain
 from .store import repo
 
 
@@ -45,6 +45,7 @@ def metrics(conn: sqlite3.Connection, run_id: str) -> dict:
     unique_urls = _one(conn, "SELECT COUNT(*) FROM urls WHERE run_id=?", r)
     return {
         "search": search_metrics(conn, r),
+        "planner": planner_metrics(conn, r),
         "providers": provider_metrics(conn, r),
         "leads": {
             "total": leads,
@@ -105,7 +106,38 @@ def metrics(conn: sqlite3.Connection, run_id: str) -> dict:
     }
 
 
+def _has_table(conn: sqlite3.Connection, name: str) -> bool:
+    return conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (name,)).fetchone() is not None
+
+
+def planner_metrics(conn: sqlite3.Connection, r: str) -> dict:
+    if not _has_table(conn, "research_objectives"):  # older schema (e.g. phase 1/2 databases)
+        return {"available": False, "reason": "database schema predates the planner (migration 0003)"}
+    objectives = conn.execute("SELECT key, status, status_reason, queries_run, relevant_docs, domains, profile_leads,"
+                              " target_docs, target_domains FROM research_objectives WHERE run_id=? ORDER BY id",
+                              (r,)).fetchall()
+    if not objectives:
+        return {"available": False, "reason": "no adaptive planner in this run"}
+    last = conn.execute("SELECT identity_signal, decision_reason FROM planner_decisions WHERE run_id=?"
+                        " ORDER BY id DESC LIMIT 1", (r,)).fetchone()
+    return {
+        "available": True,
+        "steps": _one(conn, "SELECT COUNT(*) FROM planner_decisions WHERE run_id=? AND decision='continue'", r),
+        "followups_added": _one(conn, "SELECT COALESCE(SUM(json_array_length(followups_json)),0) FROM planner_decisions"
+                                      " WHERE run_id=?", r),
+        "objectives": {o["key"]: {"status": o["status"], "reason": o["status_reason"], "queries": o["queries_run"],
+                                  "relevant_docs": o["relevant_docs"], "domains": o["domains"],
+                                  "profile_leads": o["profile_leads"],
+                                  "targets": [o["target_docs"], o["target_domains"]]} for o in objectives},
+        "coverage_gaps": [o["key"] for o in objectives if o["status"] != "covered"],
+        "final_identity_signal": last["identity_signal"] if last else None,
+        "stop_explanation": last["decision_reason"] if last else None,
+    }
+
+
 def search_metrics(conn: sqlite3.Connection, r: str) -> dict:
+    if not _has_table(conn, "search_queries"):
+        return {"available": False, "reason": "database schema predates the search layer (migration 0002)"}
     planned = _one(conn, "SELECT COUNT(*) FROM search_queries WHERE run_id=?", r)
     if planned == 0:
         return {"available": False, "reason": "no search stage in this run"}
@@ -130,6 +162,8 @@ def search_metrics(conn: sqlite3.Connection, r: str) -> dict:
 
 def provider_metrics(conn: sqlite3.Connection, run_id: str | None = None) -> dict:
     """Per-provider cost and quality. With run_id=None, aggregates every stored run (provider comparison)."""
+    if not _has_table(conn, "search_queries"):
+        return {}
     where, args = ("q.run_id = ?", (run_id,)) if run_id else ("1=1", ())
     providers = [row[0] for row in conn.execute(f"SELECT DISTINCT provider FROM search_queries q WHERE {where}", args)]
     out = {}
@@ -208,11 +242,20 @@ def evaluate_gates(conn: sqlite3.Connection, run_id: str, stop_code: Code | None
           AND (fa.id IS NULL OR fa.outcome IN ('retry', 'redirect')
                OR (fa.outcome='skipped' AND fa.failure_code IN ({stop_codes}))
                OR (fa.outcome='failure' AND fa.failure_code IN ({stop_codes})))""", run_id)
-    run = conn.execute("SELECT input_json FROM runs WHERE id=?", (run_id,)).fetchone()
+    run = conn.execute("SELECT input_json, kind FROM runs WHERE id=?", (run_id,)).fetchone()
     retrieve = json.loads(run[0]).get("retrieve", True) if run and run[0] else True
     s = m["search"]
     gates = []
-    essential = {"has_leads", "usable_documents", "some_fetch_succeeded", "search_succeeded"}
+    essential = {"has_leads", "usable_documents", "some_fetch_succeeded", "search_succeeded", "identity_resolved"}
+    if run and run["kind"] == "research":
+        # the planner finishing by design is not "unprocessed work"; limits and faults are
+        gates.append(_gate("identity_resolved", stop_code != Code.IDENTITY_UNRESOLVED, Code.IDENTITY_UNRESOLVED,
+                           f"provisional identity signal at stop: {m['planner'].get('final_identity_signal')}"))
+        if stop_code != Code.IDENTITY_UNRESOLVED:
+            gates.append(_gate("planner_finished", stop_code in NATURAL_STOPS, stop_code or Code.WORK_UNPROCESSED,
+                               f"stop reason: {stop_code.value if stop_code else 'none'}"))
+        if stop_code in NATURAL_STOPS or stop_code == Code.IDENTITY_UNRESOLVED:
+            stop_code = None  # recorded by the gates above
     if s["available"]:
         failures = {**s["queries_failed_by_code"], **s["queries_skipped_by_code"]}
         worst = max(failures, key=failures.get) if failures else None

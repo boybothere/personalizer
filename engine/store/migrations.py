@@ -251,9 +251,56 @@ DROP TABLE search_results;
 DROP TABLE search_queries
 """
 
+M0003_UP = """
+CREATE TABLE research_objectives (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id TEXT NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
+    key TEXT NOT NULL,
+    category TEXT NOT NULL,
+    priority REAL NOT NULL,
+    target_docs INTEGER NOT NULL,
+    target_domains INTEGER NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('pending', 'active', 'covered', 'saturated', 'exhausted', 'blocked')),
+    status_reason TEXT,
+    queries_run INTEGER NOT NULL DEFAULT 0,
+    relevant_docs INTEGER NOT NULL DEFAULT 0,
+    domains INTEGER NOT NULL DEFAULT 0,
+    profile_leads INTEGER NOT NULL DEFAULT 0,
+    low_yield_streak INTEGER NOT NULL DEFAULT 0,
+    variants_json TEXT NOT NULL,
+    created_reason TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE (run_id, key)
+);
+CREATE TABLE planner_decisions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id TEXT NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
+    step INTEGER NOT NULL,
+    objective_key TEXT,
+    query_ids_json TEXT,
+    spec_json TEXT,
+    selection_reason TEXT,
+    scores_json TEXT,
+    contribution_json TEXT,
+    followups_json TEXT,
+    identity_signal TEXT,
+    decision TEXT NOT NULL CHECK (decision IN ('continue', 'stop')),
+    decision_reason TEXT NOT NULL,
+    at TEXT NOT NULL
+);
+CREATE INDEX idx_pd_run ON planner_decisions(run_id, step)
+"""
+
+M0003_DOWN = """
+DROP INDEX idx_pd_run;
+DROP TABLE planner_decisions;
+DROP TABLE research_objectives
+"""
+
 MIGRATIONS: list[Migration] = [
     Migration(1, "observability_and_retrieval", M0001_UP, M0001_DOWN),
     Migration(2, "search_layer_and_provider_ledger", M0002_UP, M0002_DOWN),
+    Migration(3, "adaptive_planner", M0003_UP, M0003_DOWN),
 ]
 
 _BOOKKEEPING = """CREATE TABLE IF NOT EXISTS schema_migrations (

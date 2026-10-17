@@ -81,6 +81,21 @@ class Providers(BaseModel):
     results_per_query: int = Field(10, ge=1, le=20)
 
 
+class PlannerSettings(BaseModel):
+    """Adaptive planner (phase 3). Budgets remain hard ceilings; these govern when to stop earlier."""
+
+    saturation_window: int = Field(2, ge=1)  # consecutive no-gain steps that saturate an objective
+    global_window: int = Field(4, ge=1)  # consecutive no-gain steps (any objective) that stop the run
+    max_queries_per_objective: int = Field(4, ge=1)
+    max_provider_failures: int = Field(3, ge=1)  # consecutive failed queries that stop the run
+    identity_target_docs: int = 2
+    identity_target_domains: int = 2
+    default_target_docs: int = 2
+    default_target_domains: int = 2
+    max_steps: int = Field(40, ge=1)  # safety ceiling on planner iterations
+    results_per_query: int = Field(5, ge=1, le=20)
+
+
 class EngineConfig(BaseModel):
     db_path: Path = ROOT / "data" / "engine.db"
     contact: str | None = None
@@ -90,6 +105,7 @@ class EngineConfig(BaseModel):
     retention: Retention = Retention()
     platforms: Platforms = Platforms()
     providers: Providers = Providers()
+    planner: PlannerSettings = PlannerSettings()
 
     @property
     def user_agent(self) -> str:
@@ -104,7 +120,7 @@ class EngineConfig(BaseModel):
         if values.get("ENGINE_DB_PATH"):
             cfg.db_path = Path(values["ENGINE_DB_PATH"])
         cfg.contact = values.get("ENGINE_CONTACT") or values.get("PERSONALIZER_CONTACT") or None
-        for section in ("budget", "fetch", "extract", "retention", "platforms", "providers"):
+        for section in ("budget", "fetch", "extract", "retention", "platforms", "providers", "planner"):
             model = getattr(cfg, section)
             updates = {}
             for name, field in type(model).model_fields.items():
