@@ -9,6 +9,9 @@ This is the deterministic rebuild of the research layer. It makes no LLM calls. 
 | [PLATFORMS.md](PLATFORMS.md) | Platform access matrix with dated probe evidence |
 | [PHASE1_RESULTS.md](PHASE1_RESULTS.md) | Phase 1: observability, storage and retrieval: results and limitations |
 | [PHASE2_RESULTS.md](PHASE2_RESULTS.md) | Phase 2: search layer, provider metrics, live search, actual costs, access policy |
+| [PHASE3_PLAN.md](PHASE3_PLAN.md) | Phase 3 plan and acceptance criteria |
+| [PHASE3_RESULTS.md](PHASE3_RESULTS.md) | Phase 3: adaptive planner and stopping logic: results, budget behaviour, sample trace |
+| [examples/phase3_trace_synthetic.txt](examples/phase3_trace_synthetic.txt) | Full synthetic planner trace (fictional subject) |
 | [DPDP_ANALYSIS.md](DPDP_ANALYSIS.md) | DPDP Act applicability and commencement: **draft for legal review** |
 
 ## Setup
@@ -32,11 +35,13 @@ Configuration is read from environment variables, or from `.env` without changin
 | `ENGINE_PLATFORMS_X_OEMBED_ENABLED`, `..._REDDIT_OEMBED_ENABLED` | false | Connector switches (disabled until terms review) |
 | `BRAVE_API_KEY`, `TAVILY_API_KEY`, `EXA_API_KEY` | — | Provider keys (never stored in the database) |
 | `ENGINE_PROVIDERS_ENABLED` | brave,tavily,exa | Providers used by `search` |
+| `ENGINE_PLANNER_*` | see `engine/config.py` | Saturation window (2), global no-gain window (4), per-objective query cap (4), provider failure streak (3), identity and coverage targets, step ceiling (40) |
 | `ENGINE_PROVIDERS_BRAVE_MONTHLY_CAP_REQUESTS`, `..._TAVILY_MONTHLY_CAP_CREDITS`, `..._EXA_MONTHLY_CAP_USD` | 900, 900, 9.0 | Free-tier guard: requests beyond a cap are not sent |
 
 ## Commands
 
 ```bash
+# Existing databases are never migrated implicitly. After taking a copy:
 python -m engine db status                      # schema version
 python -m engine db upgrade                     # apply migrations
 python -m engine db downgrade --to 0            # reversible; drops tables, so needs an explicit target
@@ -44,7 +49,9 @@ python -m engine retrieve URL [URL ...] [--json]
 python -m engine summary RUN_ID [--trace]       # metrics, gates, URLs, documents, trace
 python -m engine search --purpose WHY --phrase P [--site S] [--fresh N] [--providers tavily] [--no-retrieve]
 python -m engine search --specs-file docs/engine/live_specs_phase2.json --providers tavily
-python -m engine ledger                         # this month's usage vs free-allowance caps
+python -m engine research --name N --purpose P [--org O] [--org-domain D] [--role R] [--focus TOPIC] --dry-run
+python -m engine research --name N --purpose P [--org O] ...          # adaptive research run (live search)
+python -m engine ledger                         # local usage record vs caps: NOT a verified account balance
 python -m engine providers                      # capabilities, terms-based storage policy, pricing
 python -m engine tavily-usage                   # Tavily's own account counter (read-only)
 python -m engine delete-run RUN_ID

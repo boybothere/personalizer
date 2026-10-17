@@ -75,6 +75,18 @@ Evidence for platform claims is in [PLATFORMS.md](PLATFORMS.md); every probe the
 | D7.5 | Only the Tavily key is configured (the Brave and Exa entries in `.env` are template comments). Brave and Exa are implemented and tested against mocks; **not live-tested**. | Fact |
 | D7.6 | Medium article pages returned **403** to our bot (5 of 5, live) although robots.txt allows them. Not bypassed; the fallback is not used after a 403. The Medium content route is RSS. | Decided (evidence) |
 
+## D8 Adaptive planner (phase 3)
+
+| # | Decision | Status |
+|---|---|---|
+| D8.1 | Query selection is a **deterministic scored queue**: priority × coverage gap × diversity × discovery boost / (1 + low-yield streak). The components are stored with every decision. No randomness and no LLM. | Decided |
+| D8.2 | The **provisional identity signal** (name plus organisation, domain, known URL or role) is used only for planning; it is never shown as an identity decision. While it is not `supported`, only identity queries run. If identity remains unresolved, the run **fails** (`IDENTITY_UNRESOLVED`). | Decided |
+| D8.3 | **Status semantics:** `completed` only for natural planner stops (`PLAN_RESOLVED`, `DIMINISHING_RETURNS`), always with per-objective coverage gaps. Any budget, provider, time or step-ceiling stop is `partial` (or `failed` if nothing usable was found). Never `completed`. | Decided |
+| D8.4 | **Failed provider queries don't use up query variants**; provider faults stop the run via `PROVIDER_ERRORS` / `NO_PROVIDER_AVAILABLE`, not via objective exhaustion. | Decided |
+| D8.5 | **No implicit migration of existing databases.** `connect()` migrates only new, empty databases; others need `engine db upgrade`. This protects the Phase 1/2 records. | Decided |
+| D8.6 | **No preference inference in planning:** focus topics produce neutral queries (the topic word only; no "love/favourite/enjoy" wording). Planner outputs are queries and documents, never preferences (phase 6). | Decided |
+| D8.7 | Scoring weights and windows are **uncalibrated defaults**, to be evaluated on consented subjects before relying on them. | Noted |
+
 ## Open items needing your input
 
 1. ⚖ items: X/Reddit terms review; Exa storage terms (D7.1); DPDP legal review (DPDP_ANALYSIS.md).

@@ -42,7 +42,7 @@ ResearchInput ─► Planner ─► objectives (inspectable; preview without run
 | `engine/extract/` | 1 | HTML sanitising, trafilatura main text and metadata, JSON-LD and OpenGraph parsing (`sameAs`, author, dates), **date resolver with source**, feed parsing, usable-text and JavaScript-only detection, content hashes and simhash | Missing, conflicting and URL-only dates; feeds; JS shells; boilerplate |
 | `engine/retrieval.py` | 1 | Leads → URLs → attempts → documents, all persisted and traced | End-to-end with recorded fixtures |
 | `engine/search/` | 2 | Provider interface with declared capabilities and cost; query rendering per provider; leads with snippet provenance | Rendering, accounting, snippets never become documents |
-| `engine/plan.py`, `engine/controller.py` | 3 | Objectives, query families, adaptive stopping, diversity and yield tracking | Saturation, budgets, every query has a reason |
+| `engine/plan.py`, `engine/controller.py`, `engine/identity_signal.py`, `engine/policy.py`, `engine/research_run.py` | 3 (**done**) | Objectives and variants; scored adaptive queue; follow-ups (weak identity, official domain, handles, diversity); provisional identity signal; stop rules; input screening | 34 tests, A1-A14 (see PHASE3_RESULTS.md) |
 | `engine/connectors/` | 4 | Bluesky, Mastodon, RSS, GitHub, YouTube, iTunes, Wikidata; X and Reddit oEmbed (off by default) | Recorded responses; mode enforcement |
 | `engine/identity/` | 5 | Candidate profiles, signals, status ladder, reversible decisions | Same-name, cross-link and reversal cases |
 | `engine/preferences/` | 6 | Rule-based preference grammar; **separate labelled evaluation corpus** | Precision and recall per class; limitations report |
@@ -53,7 +53,7 @@ ResearchInput ─► Planner ─► objectives (inspectable; preview without run
 
 `schema_migrations`, `subjects`, `runs` (status, stop reason, config snapshot, quality gates), `stage_events`, `trace_events`, `leads` (with evidence kind and snippet provenance), `urls` (decision plus reject code; unique per run and URL key), `fetch_attempts` (one row per attempt, retries included), `documents` (evidence kind, final and canonical URL, metadata, `published_at` + `published_source` + candidates, hashes, usable flag or failure code, text with expiry), `provider_usage`.
 
-Later phases add tables through new migrations (0002 search queries and results, 0003 profiles and identity decisions, 0004 evidence and claims, 0005 validation). Each migration has a tested `down()`.
+Later phases add tables through new migrations: 0002 search (done), 0003 planner (done: `research_objectives`, `planner_decisions`), then identity, evidence and claims, validation. Each migration has a tested `down()`. **Existing databases are only migrated explicitly** (`engine db upgrade`).
 
 ## Metrics (derived; never hand-counted)
 
