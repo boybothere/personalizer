@@ -305,11 +305,49 @@ M0004_DOWN = """
 ALTER TABLE fetch_attempts DROP COLUMN connected_ip
 """
 
+M0005_UP = """
+CREATE TABLE identity_resolutions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id TEXT NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
+    status TEXT NOT NULL CHECK (status IN ('confirmed', 'strongly_supported', 'possible', 'conflicting',
+                                           'insufficient_evidence')),
+    resolved INTEGER NOT NULL,
+    explanation_json TEXT NOT NULL,
+    details_json TEXT,
+    rule_version TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    superseded_by INTEGER
+);
+CREATE TABLE identity_decisions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id TEXT NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
+    resolution_id INTEGER REFERENCES identity_resolutions(id) ON DELETE CASCADE,
+    target_type TEXT NOT NULL CHECK (target_type IN ('document', 'profile')),
+    target_ref TEXT NOT NULL,
+    candidate_key TEXT,
+    status TEXT NOT NULL,
+    signals_json TEXT,
+    reasons_json TEXT,
+    decided_by TEXT NOT NULL CHECK (decided_by IN ('rules', 'user')),
+    note TEXT,
+    created_at TEXT NOT NULL,
+    superseded_by INTEGER
+);
+CREATE INDEX idx_idd_run ON identity_decisions(run_id, target_type, target_ref)
+"""
+
+M0005_DOWN = """
+DROP INDEX idx_idd_run;
+DROP TABLE identity_decisions;
+DROP TABLE identity_resolutions
+"""
+
 MIGRATIONS: list[Migration] = [
     Migration(1, "observability_and_retrieval", M0001_UP, M0001_DOWN),
     Migration(2, "search_layer_and_provider_ledger", M0002_UP, M0002_DOWN),
     Migration(3, "adaptive_planner", M0003_UP, M0003_DOWN),
     Migration(4, "fetch_connected_ip", M0004_UP, M0004_DOWN),
+    Migration(5, "identity_resolution", M0005_UP, M0005_DOWN),
 ]
 
 _BOOKKEEPING = """CREATE TABLE IF NOT EXISTS schema_migrations (

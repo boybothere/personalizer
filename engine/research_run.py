@@ -14,6 +14,8 @@ import httpx
 from .budget import RunBudget
 from .config import EngineConfig
 from .controller import AdaptiveController
+from .identity.evidence import Subject
+from .identity.store import resolve_run
 from .observe import stage
 from .plan import ResearchInput, build_plan
 from .policy import screen
@@ -62,6 +64,11 @@ async def research_run(conn: sqlite3.Connection, cfg: EngineConfig, inp: Researc
             stop = await controller.run()
         with stage(conn, run_id, "storage_policy"):
             scrub_transient(conn, run_id)
+        # identity resolution (phase 5): advisory in this phase; run status is unchanged. It runs now,
+        # while document text is still inside its retention window.
+        with stage(conn, run_id, "identity_resolution"):
+            resolve_run(conn, run_id, Subject(inp.name, inp.organization, inp.organization_domain, inp.role,
+                                              inp.location, list(inp.known_urls)), today=today)
     finally:
         await fetcher.aclose()
         if client is not None:

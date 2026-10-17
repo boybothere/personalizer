@@ -1,4 +1,5 @@
-"""Provisional identity signal, used ONLY to steer the planner (phase 3).
+"""Provisional identity signal, used ONLY to steer the planner (phase 3). The identity *decision* is
+made by engine/identity/ (phase 5), which never treats a name-and-organisation match as proof.
 
 It is not an identity decision: phase 5 replaces it with candidate profiles, conflict detection and
 reversible decisions. It never marks anything as confirmed.

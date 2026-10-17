@@ -382,7 +382,7 @@ def test_migration_0004_on_a_copy_preserves_existing_records(tmp_path):
     strip = lambda m: {k: v for k, v in m.items() if k != "planner"}  # noqa: E731
     before = {r: strip(metrics(conn, r)) for r in runs}
     steps = migrate(conn)
-    assert steps[-1] == f"up {MIGRATIONS[-1].version} fetch_connected_ip"
+    assert "up 4 fetch_connected_ip" in steps
     assert "connected_ip" in [c[1] for c in conn.execute("PRAGMA table_info(fetch_attempts)")]
     after = {r: strip(metrics(conn, r)) for r in runs}
     for r in runs:  # new metric keys appear; every pre-existing value is identical

@@ -50,6 +50,7 @@ def metrics(conn: sqlite3.Connection, run_id: str) -> dict:
     return {
         "search": search_metrics(conn, r),
         "planner": planner_metrics(conn, r),
+        "identity": identity_metrics(conn, r),
         "providers": provider_metrics(conn, r),
         "leads": {
             "total": leads,
@@ -126,6 +127,17 @@ def _usable_rate(conn: sqlite3.Connection, r: str) -> float | None:
 
 def _has_table(conn: sqlite3.Connection, name: str) -> bool:
     return conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (name,)).fetchone() is not None
+
+
+def identity_metrics(conn: sqlite3.Connection, r: str) -> dict:
+    if not _has_table(conn, "identity_resolutions"):
+        return {"available": False, "reason": "database schema predates identity resolution (migration 0005)"}
+    from .identity.store import latest
+
+    result = latest(conn, r)
+    if result is None:
+        return {"available": False, "reason": "no identity resolution for this run"}
+    return {"available": True, "advisory": True, **result}
 
 
 def planner_metrics(conn: sqlite3.Connection, r: str) -> dict:
