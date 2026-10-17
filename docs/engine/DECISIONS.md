@@ -111,6 +111,20 @@ Evidence for platform claims is in [PLATFORMS.md](PLATFORMS.md); every probe the
 | D10.6 | **Reversible and auditable.** Rule decisions carry `identity-rules-1`. User overrides need a written reason and supersede earlier ones. Re-resolution keeps user decisions. Migration 0005 is reversible. | Decided |
 | D10.7 | **Advisory in this phase.** The resolution is recorded and shown in metrics, but it does not change run status or gates. | Decided, pending your Phase 6 direction |
 
+## D11 Evidence-gated claims (phase 6)
+
+| # | Decision | Status |
+|---|---|---|
+| D11.1 | Origin groups and claim statuses are built in phase 6 (moved forward from phase 7) | **Approved** (2026-10-18, P6-Q1) |
+| D11.2 | Claim evidence sentences expire with page text after **7 days**; claim records live as long as the run (**30 days**). Purge reports whether the WAL checkpoint completed. `temp_store = MEMORY`. Backups, sync and scheduling outside the engine are documented limitations. | **Approved** (P6-Q2) |
+| D11.3 | Third-party-reported preferences are kept only as `reported` claims, **hard-capped at `tentative`** and labelled "reported by <site> (not the subject's own statement)" | **Approved** (P6-Q3) |
+| D11.4 | `activity_pattern` only from ≥ 3 distinct dated events in ≥ 3 origin groups over ≥ 2 years; always "recurring activity, not a stated preference" | **Approved** (P6-Q4) |
+| D11.5 | `identity-rules-2`: organisations match by tokens; independence counts origin groups; decisions for documents whose text expired are carried forward. Every changed decision is reported (PHASE6_RESULTS.md §5). | **Approved** (P6-Q5) |
+| D11.6 | Independence is judged conservatively: when unsure, sources are merged | **Approved** (S1) |
+| D11.7 | Out-of-scope sentences never become claims and are overwritten in all stored text after the run (same-length placeholder; counts only) | **Approved** (S2) |
+| D11.8 | Identity confidence and claim confidence are stored and shown separately. When identity changes, dependent claims are superseded and recomputed from retained text, or the run reports `text_expired`. | **Approved** (S3) |
+| D11.9 | Claim confidence is an ordinal label derived from status and flags, **not a probability**. Synthetic results are reported only as agreement with authored labels. | **Approved** (S4, S5) |
+
 ## Open items needing your input
 
 1. ⚖ items: X/Reddit terms review; Exa storage terms (D7.1); DPDP legal review (DPDP_ANALYSIS.md).

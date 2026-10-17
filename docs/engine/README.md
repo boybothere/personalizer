@@ -18,7 +18,8 @@ This is the deterministic rebuild of the research layer. It makes no LLM calls. 
 | [BOT_DETECTION_REVIEW.md](BOT_DETECTION_REVIEW.md) | Bot/challenge detection: limitations and review steps (why the provider fallback is off) |
 | [PHASE5_PLAN.md](PHASE5_PLAN.md) | Phase 5 plan and acceptance criteria (identity resolution) |
 | [PHASE5_RESULTS.md](PHASE5_RESULTS.md) | Phase 5: identity resolution: labelled cases, example decisions, false-match risks, limitations |
-| [PHASE6_PLAN.md](PHASE6_PLAN.md) | Phase 6 plan (**proposed, for review**): evidence-gated claims, origin groups, organisation matching, out-of-scope filter |
+| [PHASE6_PLAN.md](PHASE6_PLAN.md) | Phase 6 plan and acceptance criteria, revised for the approval conditions |
+| [PHASE6_RESULTS.md](PHASE6_RESULTS.md) | Phase 6: evidence-gated claims: agreement with authored labels (synthetic), retention and privacy verification, identity-rules-2 change report, limitations |
 | [DPDP_ANALYSIS.md](DPDP_ANALYSIS.md) | DPDP Act applicability and commencement: **draft for legal review** |
 
 ## Setup
@@ -88,3 +89,7 @@ ENGINE_LIVE=1 pytest tests_engine/test_live.py  # live smoke test (free, keyless
   (resolved) or `possible` / `conflicting` / `insufficient_evidence` (unresolved), with an explanation,
   documents by status, and profiles (`duplicate_unresolved` when one platform has several candidates).
   A name-plus-organisation match alone is never enough. See PHASE5_RESULTS.md.
+- **claims** (advisory; does not change the run status): counts by type, status, confidence and flag.
+  Claims exist only for a resolved subject and only from identity-gated pages. Confidence is an ordinal label
+  (not a probability) and is separate from identity. `python -m engine claims RUN_ID --evidence` lists them with
+  their sources; evidence sentences are shown only while retained (7 days). See PHASE6_RESULTS.md.

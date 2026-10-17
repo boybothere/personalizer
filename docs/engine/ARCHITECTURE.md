@@ -46,7 +46,7 @@ ResearchInput ─► Planner ─► objectives (inspectable; preview without run
 | `engine/plan.py`, `engine/controller.py`, `engine/identity_signal.py`, `engine/policy.py`, `engine/research_run.py` | 3 (**done**) | Objectives and variants; scored adaptive queue; follow-ups (weak identity, official domain, handles, diversity); provisional identity signal; stop rules; input screening | 34 tests, A1-A14 (see PHASE3_RESULTS.md) |
 | `engine/connectors/` | 4 | Bluesky, Mastodon, RSS, GitHub, YouTube, iTunes, Wikidata; X and Reddit oEmbed (off by default) | Recorded responses; mode enforcement |
 | `engine/identity/` | 5 (**done**) | Mention-level evidence (organisation *attached* to the name, past tense, role, occupation, hedging); per-document statuses; profiles with duplicate handling; subject statuses with conflicts and staleness; reversible user overrides. Advisory in runs. | 29 tests, 20 labelled cases, I1-I11 (see PHASE5_RESULTS.md) |
-| `engine/preferences/` | 6 | Rule-based preference grammar; **separate labelled evaluation corpus** | Precision and recall per class; limitations report |
+| `engine/origins.py`, `engine/identity/orgmatch.py`, `engine/claims/` | 6 (**done**) | Origin groups (conservative copy and syndication detection); token organisation matching (`identity-rules-2`); identity-gated claims (stated preference, activity, association, recurring activity) with status, flags, ordinal confidence and full provenance; out-of-scope filter and redaction of stored text | 101 tests, 63 development and 24 held-out labelled cases, C1-C17 (see PHASE6_RESULTS.md) |
 | `engine/validate/` | 7 | Origin groups, corroboration, conflicts, temporal currency, status rules with explanations | Syndication, conflict and staleness cases |
 | `engine/api.py` | 8 | Runs: plan preview, start, progress, cancel, filters, trace, delete | API tests |
 
@@ -54,7 +54,7 @@ ResearchInput ─► Planner ─► objectives (inspectable; preview without run
 
 `schema_migrations`, `subjects`, `runs` (status, stop reason, config snapshot, quality gates), `stage_events`, `trace_events`, `leads` (with evidence kind and snippet provenance), `urls` (decision plus reject code; unique per run and URL key), `fetch_attempts` (one row per attempt, retries included), `documents` (evidence kind, final and canonical URL, metadata, `published_at` + `published_source` + candidates, hashes, usable flag or failure code, text with expiry), `provider_usage`.
 
-Later phases add tables through new migrations: 0002 search (done), 0003 planner (done: `research_objectives`, `planner_decisions`), 0004 `fetch_attempts.connected_ip` (done), 0005 identity (done: `identity_resolutions`, `identity_decisions`), then evidence and claims, validation. Each migration has a tested `down()`. **Existing databases are only migrated explicitly** (`engine db upgrade`).
+Later phases add tables through new migrations: 0002 search (done), 0003 planner (done: `research_objectives`, `planner_decisions`), 0004 `fetch_attempts.connected_ip` (done), 0005 identity (done: `identity_resolutions`, `identity_decisions`), 0006 claims (done: `origin_groups`, `claims`, `claim_evidence`), then evidence and claims, validation. Each migration has a tested `down()`. **Existing databases are only migrated explicitly** (`engine db upgrade`).
 
 ## Metrics (derived; never hand-counted)
 
