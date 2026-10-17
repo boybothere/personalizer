@@ -292,10 +292,23 @@ def test_api_keys_are_never_written_to_the_database(tmp_path):
 # ---------------------------------------------------------------- provider extract fallback (decision D3.3)
 
 
-def _fallback_run(route_response, robots="User-agent: *\nAllow: /\n"):
+def _fallback_run(route_response, robots="User-agent: *\nAllow: /\n", enabled=True):
     apis = FakeAPIs({"tavily": ["https://slow.example/page"]})
     site = Site({"/page": route_response}, robots=robots)
-    return apis, *run_search(apis, [spec()], site, enabled=["tavily"])
+    cfg = make_cfg()
+    cfg.providers.fallback_enabled = enabled  # these tests exercise the fallback's own rules
+    return apis, *run_search(apis, [spec()], site, cfg=cfg, enabled=["tavily"])
+
+
+def test_fallback_is_disabled_by_default_for_real_research():
+    assert make_cfg().providers.fallback_enabled is False
+
+    def timeout(request):
+        raise httpx.ReadTimeout("t", request=request)
+
+    apis, conn, rid = _fallback_run(timeout, enabled=False)
+    assert apis.count("tavily", "/extract") == 0
+    assert not conn.execute("SELECT 1 FROM documents WHERE evidence_kind='provider_extract'").fetchone()
 
 
 def test_fallback_used_after_technical_failure():
@@ -392,6 +405,8 @@ def test_extract_credits_accrue_even_when_provider_reports_zero():
     def timeout(request):
         raise httpx.ReadTimeout("t", request=request)
 
-    conn, rid = run_search(apis, [spec()], Site({"/page": timeout}), enabled=["tavily"])
+    cfg = make_cfg()
+    cfg.providers.fallback_enabled = True
+    conn, rid = run_search(apis, [spec()], Site({"/page": timeout}), cfg=cfg, enabled=["tavily"])
     units = conn.execute("SELECT units FROM provider_ledger WHERE operation='extract'").fetchone()[0]
     assert units == pytest.approx(0.2)  # 1 credit per 5 successes, accrued so the free-tier guard is not fooled

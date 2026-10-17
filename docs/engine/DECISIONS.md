@@ -97,7 +97,7 @@ Evidence for platform claims is in [PLATFORMS.md](PLATFORMS.md); every probe the
 | D9.4 | **Bot or captcha interstitials are access controls** (`ACCESS_CHALLENGE`): never retried, never solved, **never sent to the provider fallback**, counted as blocked. | Decided |
 | D9.5 | **Bounded decompression:** we accept only gzip and deflate, decoded incrementally with a hard output cap; other encodings are refused. | Decided |
 | D9.6 | **PDFs are reported, not fetched** (`UNSUPPORTED_PDF`), until PDF extraction is approved and built. | Decided |
-| D9.7 | Because challenge detection is pattern-based, **keep the provider-text fallback disabled for real research** until a labelled sample of blocked pages has been reviewed. | Recommendation (needs your decision) |
+| D9.7 | **Provider-text fallback is disabled by default** (`providers.fallback_enabled = false`) for real research until bot-page detection has been reviewed; limitations and the review steps are in [BOT_DETECTION_REVIEW.md](BOT_DETECTION_REVIEW.md). Access controls are never bypassed. | **Approved** (2026-10-17) |
 
 ## Open items needing your input
 

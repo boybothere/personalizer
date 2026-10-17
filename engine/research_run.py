@@ -53,7 +53,8 @@ async def research_run(conn: sqlite3.Connection, cfg: EngineConfig, inp: Researc
     runner = SearchRunner(conn, cfg, provs, run_id, budget, sleep=sleep)
     tavily = provs.get("tavily")
     retriever = Retriever(conn, cfg, transport=transport, resolver=resolver, sleep=sleep, today=today,
-                          fallback=make_tavily_fallback(conn, cfg, tavily) if isinstance(tavily, TavilyProvider) else None)
+                          fallback=make_tavily_fallback(conn, cfg, tavily)
+                          if cfg.providers.fallback_enabled and isinstance(tavily, TavilyProvider) else None)
     fetcher = retriever.make_fetcher(run_id, budget)
     try:
         controller = AdaptiveController(conn, cfg, run_id, budget, runner, retriever, fetcher, inp, objectives)

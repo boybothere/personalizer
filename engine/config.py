@@ -79,6 +79,9 @@ class Providers(BaseModel):
     timeout: float = 20.0
     max_retries: int = 2
     results_per_query: int = Field(10, ge=1, le=20)
+    # Provider page text after a technical fetch failure. OFF for real research (decision D9.7): bot-page
+    # detection is pattern-based, so a missed challenge could otherwise be bypassed via the provider's copy.
+    fallback_enabled: bool = False
 
 
 class PlannerSettings(BaseModel):

@@ -112,7 +112,8 @@ async def search_run(conn: sqlite3.Connection, cfg: EngineConfig, specs: list[Se
         with stage(conn, run_id, "search"):
             leads = await runner.execute(specs)
         tavily = provs.get("tavily")
-        fallback = make_tavily_fallback(conn, cfg, tavily) if isinstance(tavily, TavilyProvider) else None
+        fallback = (make_tavily_fallback(conn, cfg, tavily)  # off unless explicitly enabled (D9.7)
+                    if cfg.providers.fallback_enabled and isinstance(tavily, TavilyProvider) else None)
         retriever = Retriever(conn, cfg, transport=transport, resolver=resolver, sleep=sleep, today=today,
                               fallback=fallback)
         if retrieve:
