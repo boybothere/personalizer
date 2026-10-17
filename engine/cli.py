@@ -92,6 +92,7 @@ def main(argv: list[str] | None = None) -> int:
     rs.add_argument("--role")
     rs.add_argument("--location")
     rs.add_argument("--known-url", action="append", default=[])
+    rs.add_argument("--org-alias", action="append", default=[])
     rs.add_argument("--focus", action="append", default=[])
     rs.add_argument("--dry-run", action="store_true", help="show the plan; no network, nothing stored")
     rs.add_argument("--json", action="store_true")
@@ -102,6 +103,10 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("ledger")
     sub.add_parser("providers")
     sub.add_parser("tavily-usage")
+    cl = sub.add_parser("claims", help="active claims of a run (printed from the database; evidence text is"
+                                       " shown only while it is retained)")
+    cl.add_argument("run_id")
+    cl.add_argument("--evidence", action="store_true")
     d = sub.add_parser("delete-run")
     d.add_argument("run_id")
     sub.add_parser("purge")
@@ -199,7 +204,8 @@ def main(argv: list[str] | None = None) -> int:
 
         inp = ResearchInput(name=args.name, meeting_purpose=args.purpose, organization=args.org,
                             organization_domain=args.org_domain, role=args.role, location=args.location,
-                            known_urls=args.known_url, focus_topics=args.focus)
+                            known_urls=args.known_url, focus_topics=args.focus,
+                            organization_aliases=args.org_alias)
         try:
             if args.dry_run:
                 print(json.dumps(preview(inp, cfg), indent=2))
@@ -245,6 +251,10 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.cmd == "summary":
         print(json.dumps(summary(conn, args.run_id, args.trace), indent=2, default=str))
+    elif args.cmd == "claims":
+        from .claims.store import active_claims
+
+        print(json.dumps(active_claims(conn, args.run_id, with_evidence=args.evidence), indent=2, ensure_ascii=False))
     elif args.cmd == "delete-run":
         print(json.dumps({"deleted": repo.delete_run(conn, args.run_id)}))
     elif args.cmd == "purge":

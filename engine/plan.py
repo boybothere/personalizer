@@ -31,6 +31,7 @@ class ResearchInput:
     location: str | None = None
     known_urls: list[str] = field(default_factory=list)
     focus_topics: list[str] = field(default_factory=list)
+    organization_aliases: list[str] = field(default_factory=list)  # former names, brands (identity-rules-2)
 
     def __post_init__(self):
         self.name = " ".join(self.name.split())

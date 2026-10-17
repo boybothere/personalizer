@@ -144,10 +144,11 @@ def extract_html(body: bytes, url: str, content_type: str | None, cfg: ExtractSe
     canonical = next(iter(tree.xpath('//link[@rel="canonical"]/@href')), None)
     rel_me = sorted(set(tree.xpath('//a[contains(concat(" ", normalize-space(@rel), " "), " me ")]/@href'
                                    ' | //link[contains(concat(" ", normalize-space(@rel), " "), " me ")]/@href')))
-    authors, same_as, raw_dates, modified = [], [], [], None
+    authors, same_as, based_on, raw_dates, modified = [], [], [], [], None
     for obj in jsonld:
         authors += _names(obj.get("author"))
         same_as += _links(obj.get("sameAs"))
+        based_on += _links(obj.get("isBasedOn"))
         if obj.get("datePublished"):
             raw_dates.append(("jsonld:datePublished", str(obj["datePublished"])))
         modified = modified or obj.get("dateModified")
@@ -199,7 +200,7 @@ def extract_html(body: bytes, url: str, content_type: str | None, cfg: ExtractSe
         site_name=meta.get("og:site_name") or data.get("sitename"), language=data.get("language") or tree.get("lang"),
         canonical_link=canonical, published=published, flags=flags,
         modified_at=modified_iso,
-        metadata={"same_as": sorted(set(same_as)), "rel_me": rel_me,
+        metadata={"same_as": sorted(set(same_as)), "rel_me": rel_me, "is_based_on": sorted(set(based_on)),
                   "jsonld_types": sorted({str(o.get("@type")) for o in jsonld if o.get("@type")}),
                   "og_type": meta.get("og:type")},
     )

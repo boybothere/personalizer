@@ -325,7 +325,9 @@ def test_same_world_same_decisions():
 def test_planner_produces_no_preference_records():
     conn, rid = run_world(rich_world(), focus_topics=["cricket"])
     tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
-    assert not {t for t in tables if "prefer" in t or "claim" in t}
+    # phase 6 adds `claims`/`claim_evidence`, written only by the identity-gated claims stage, never by the planner
+    assert not {t for t in tables if "prefer" in t or "claim" in t} - {"claims", "claim_evidence"}
+    assert not any("claim" in json.dumps(dict(d)).lower() for d in decisions(conn, rid))
     issued = [json.loads(d["spec_json"]) for d in decisions(conn, rid) if d["spec_json"]]
     assert not any(w in json.dumps(s).lower() for s in issued for w in PREFERENCE_WORDS)
 

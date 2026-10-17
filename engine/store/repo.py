@@ -180,9 +180,12 @@ def mark_duplicate(conn: sqlite3.Connection, doc_id: str, duplicate_of: str) -> 
 # ---------------------------------------------------------------- retention and deletion
 
 
-def _checkpoint(conn: sqlite3.Connection) -> None:
-    # With WAL, deleted content can linger in the -wal file until a checkpoint; secure_delete covers the main file.
-    conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+def _checkpoint(conn: sqlite3.Connection) -> bool:
+    """Copy the WAL into the main file and truncate it. With WAL, old page images (with deleted or expired text)
+    stay in the -wal file until a checkpoint; secure_delete covers the main file. Returns False when a reader
+    blocked it (busy): the old content must then be treated as still on disk until a later checkpoint succeeds."""
+    row = conn.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
+    return row is None or row[0] == 0
 
 
 def delete_run(conn: sqlite3.Connection, run_id: str) -> bool:
@@ -206,7 +209,12 @@ def purge(conn: sqlite3.Connection, at: datetime | None = None) -> dict:
                             (t,)).rowcount
     snippets += conn.execute("UPDATE search_results SET snippet = NULL, title = NULL WHERE (snippet IS NOT NULL"
                              " OR title IS NOT NULL) AND text_expires_at < ?", (t,)).rowcount
+    evidence = 0
+    if conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='claim_evidence'").fetchone():
+        evidence = conn.execute("UPDATE claim_evidence SET evidence_text = NULL WHERE evidence_text IS NOT NULL"
+                                " AND text_expires_at < ?", (t,)).rowcount
     runs = conn.execute("DELETE FROM runs WHERE expires_at < ?", (t,)).rowcount
-    if texts or snippets or runs:
-        _checkpoint(conn)
-    return {"runs_deleted": runs, "texts_cleared": texts, "snippets_cleared": snippets}
+    out = {"runs_deleted": runs, "texts_cleared": texts, "snippets_cleared": snippets, "evidence_cleared": evidence}
+    if texts or snippets or runs or evidence:
+        out["checkpoint_complete"] = _checkpoint(conn)
+    return out

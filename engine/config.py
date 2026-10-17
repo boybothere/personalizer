@@ -84,6 +84,18 @@ class Providers(BaseModel):
     fallback_enabled: bool = False
 
 
+class ClaimSettings(BaseModel):
+    """Phase 6 claim extraction and source independence (PHASE6_PLAN.md)."""
+
+    stale_after_days: int = Field(730, ge=1)
+    shared_passage_words: int = Field(12, ge=5)  # a shared word sequence this long merges two sources
+    shared_shingle_ratio: float = Field(0.15, gt=0, le=1)  # share of the shorter text's 5-word shingles
+    shared_shingle_min: int = Field(4, ge=1)  # ...and at least this many shared shingles (job titles are not copies)
+    shared_quote_words: int = Field(8, ge=3)
+    pattern_min_events: int = Field(3, ge=2)
+    pattern_min_years: int = Field(2, ge=1)
+
+
 class PlannerSettings(BaseModel):
     """Adaptive planner (phase 3). Budgets remain hard ceilings; these govern when to stop earlier."""
 
@@ -109,6 +121,7 @@ class EngineConfig(BaseModel):
     platforms: Platforms = Platforms()
     providers: Providers = Providers()
     planner: PlannerSettings = PlannerSettings()
+    claims: ClaimSettings = ClaimSettings()
 
     @property
     def user_agent(self) -> str:
@@ -123,7 +136,7 @@ class EngineConfig(BaseModel):
         if values.get("ENGINE_DB_PATH"):
             cfg.db_path = Path(values["ENGINE_DB_PATH"])
         cfg.contact = values.get("ENGINE_CONTACT") or values.get("PERSONALIZER_CONTACT") or None
-        for section in ("budget", "fetch", "extract", "retention", "platforms", "providers", "planner"):
+        for section in ("budget", "fetch", "extract", "retention", "platforms", "providers", "planner", "claims"):
             model = getattr(cfg, section)
             updates = {}
             for name, field in type(model).model_fields.items():

@@ -165,6 +165,6 @@ def test_migration_0005_on_a_copy(tmp_path):
     assert counts() == before
     for run_id in [r[0] for r in conn.execute("SELECT id FROM runs")]:
         assert metrics(conn, run_id)["identity"]["available"] is False  # old runs: no resolution, nothing invented
-    assert migrate(conn, 2)[0] == "down 5 identity_resolution" and counts() == before
+    assert "down 5 identity_resolution" in migrate(conn, 2) and counts() == before
     conn.close()
     assert hashlib.sha256(LOCAL_DB.read_bytes()).hexdigest() == original

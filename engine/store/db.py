@@ -26,6 +26,7 @@ def connect(path: Path | str, *, upgrade: bool | str = "if_new") -> sqlite3.Conn
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     conn.execute("PRAGMA secure_delete = ON")  # deleted/expired text is overwritten, not left in free pages
+    conn.execute("PRAGMA temp_store = MEMORY")  # sorts and temp tables never spill row content to OS temp files
     if str(path) != ":memory:":
         conn.execute("PRAGMA journal_mode = WAL")
     version = current_version(conn)

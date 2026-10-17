@@ -16,7 +16,7 @@ from urllib.parse import urlsplit
 
 from .evidence import DocEvidence, Subject
 
-RULE_VERSION = "identity-rules-1"
+RULE_VERSION = "identity-rules-2"  # rules-2: token organisation matching; independence by origin group
 SUPPORTING = {"confirmed", "strong"}
 STALE_AFTER_DAYS = 730
 PROFILE_HOSTS = {"github.com", "medium.com", "x.com", "twitter.com", "linkedin.com", "instagram.com", "bsky.app",
@@ -95,12 +95,13 @@ def attribute(ev: DocEvidence, subject: Subject, confirmed_profiles: set[tuple[s
     tgt_current = any(m.target_org and not m.historical for m in firm)
     tgt_hist = any(m.target_org and m.historical for m in firm)
     others_current = sorted({o for m in firm if not m.historical for o in m.other_orgs})
+    partial = sorted({o for m in firm if not m.historical for o in m.partial_orgs})
     occupation = next((m.occupation for m in firm if m.occupation), None)
     role = any(m.role_near for m in firm)
     location = any(m.location_near for m in firm)
     linked = sorted({f"{k[0]}/{k[1]}" for l in ev.profile_links if (k := profile_key(l)) in confirmed_profiles})
     sig.update({"target_org_current": tgt_current, "target_org_historical": tgt_hist, "other_orgs": others_current,
-                "occupation": occupation, "role_near": role, "location_near": location,
+                "partial_orgs": partial, "occupation": occupation, "role_near": role, "location_near": location,
                 "links_confirmed_profile": linked})
 
     if ev.official_domain or ev.known_url:
@@ -118,6 +119,9 @@ def attribute(ev: DocEvidence, subject: Subject, confirmed_profiles: set[tuple[s
         if extra:
             return d("strong", [f"name tied to the target organisation plus {', '.join(extra)}"], "target")
         return d("possible", ["name and organisation only: not sufficient on its own"], "target")
+    if partial and not others_current:
+        return d("ambiguous", [f"organisation name only partly matches the target: {', '.join(partial)}"],
+                 "unassigned")
     if tgt_hist and not others_current:
         return d("historical", ["name tied to the target organisation in the past tense"], "target")
     if others_current:
@@ -158,7 +162,7 @@ def _profiles(subject: Subject, docs: list[DocDecision], evidence: dict[str, Doc
             elif dd.status == "strong":
                 k = profile_key(link)
                 if k:
-                    strong_links.setdefault(k, set()).add(dd.registrable)
+                    strong_links.setdefault(k, set()).add(evidence[dd.doc_id].origin_group or dd.registrable)
                 add(link, "possible", f"linked from strong page {dd.url}", dd.url)
             elif dd.status in ("possible", "historical"):
                 add(link, "possible", f"linked from {dd.status} page {dd.url}", dd.url)
@@ -167,7 +171,7 @@ def _profiles(subject: Subject, docs: list[DocDecision], evidence: dict[str, Doc
     for k, domains in strong_links.items():
         if len(domains) >= 2 and found[k].status != "confirmed":
             found[k].status = "strong"
-            found[k].reasons.append(f"linked from strong pages on {len(domains)} independent domains")
+            found[k].reasons.append(f"linked from strong pages in {len(domains)} independent origins")
     for u in leads:
         add(u, "possible", "search-result lead only (snippet; never verified)", "search")
     # duplicates: several live profiles on one platform -> only the single best can stand
@@ -221,7 +225,8 @@ def resolve(subject: Subject, evidence: list[DocEvidence], *, leads: list[str] |
     if syndicated:
         explanation.append(f"{syndicated} syndicated/near-duplicate document(s) counted once")
     confirmed = [dd for dd in independent if dd.status == "confirmed"]
-    strong_domains = {dd.registrable for dd in independent if dd.status == "strong"}
+    # independence: origin group (phase 6: same site, copies, syndication, shared passages), else the domain
+    strong_domains = {by_id[dd.doc_id].origin_group or dd.registrable for dd in independent if dd.status == "strong"}
     supportive = [dd for dd in independent if dd.status in ("confirmed", "strong", "possible", "historical")]
 
     # conflict 1: a profile we attribute to the subject also appears on a page tying the name elsewhere
@@ -259,11 +264,11 @@ def resolve(subject: Subject, evidence: list[DocEvidence], *, leads: list[str] |
         explanation.append(f"{len(confirmed)} confirmed anchor document(s)")
     elif len(strong_domains) >= 2 and not stale:
         status = "strongly_supported"
-        explanation.append(f"strong documents on {len(strong_domains)} independent domains")
+        explanation.append(f"strong documents in {len(strong_domains)} independent origins")
     elif supportive:
         status = "possible"
         explanation.append(f"support below threshold: {len(confirmed)} confirmed, "
-                           f"{len(strong_domains)} strong domain(s), "
+                           f"{len(strong_domains)} strong origin(s), "
                            f"{sum(dd.status == 'possible' for dd in supportive)} possible, "
                            f"{sum(dd.status == 'historical' for dd in supportive)} historical")
     else:

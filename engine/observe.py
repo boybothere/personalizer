@@ -51,6 +51,7 @@ def metrics(conn: sqlite3.Connection, run_id: str) -> dict:
         "search": search_metrics(conn, r),
         "planner": planner_metrics(conn, r),
         "identity": identity_metrics(conn, r),
+        "claims": claim_metrics(conn, r),
         "providers": provider_metrics(conn, r),
         "leads": {
             "total": leads,
@@ -127,6 +128,17 @@ def _usable_rate(conn: sqlite3.Connection, r: str) -> float | None:
 
 def _has_table(conn: sqlite3.Connection, name: str) -> bool:
     return conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (name,)).fetchone() is not None
+
+
+def claim_metrics(conn: sqlite3.Connection, r: str) -> dict:
+    if not _has_table(conn, "claims"):
+        return {"available": False, "reason": "database schema predates claims (migration 0006)"}
+    from .claims.store import claims_metrics
+
+    out = claims_metrics(conn, r)
+    if out["claims"] == 0 and out["last_action"] is None:
+        return {"available": False, "reason": "no claim extraction for this run"}
+    return {"available": True, "advisory": True, **out}
 
 
 def identity_metrics(conn: sqlite3.Connection, r: str) -> dict:

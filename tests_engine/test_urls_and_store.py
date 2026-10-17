@@ -154,7 +154,8 @@ def test_purge_clears_text_then_deletes_expired_runs():
     conn = connect(":memory:")
     _, rid, did = _seed(conn)
     out = repo.purge(conn, repo.now() + timedelta(days=8))
-    assert out == {"runs_deleted": 0, "texts_cleared": 1, "snippets_cleared": 0}
+    assert out == {"runs_deleted": 0, "texts_cleared": 1, "snippets_cleared": 0, "evidence_cleared": 0,
+                   "checkpoint_complete": True}
     row = conn.execute("SELECT text, text_chars FROM documents WHERE id=?", (did,)).fetchone()
     assert row["text"] is None and row["text_chars"] == 4  # hashes/metadata kept
     assert repo.purge(conn, repo.now() + timedelta(days=31))["runs_deleted"] == 1

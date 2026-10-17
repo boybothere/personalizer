@@ -10,7 +10,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-from ..identity_signal import GENERIC_ROLE_WORDS, org_core
+from ..identity_signal import GENERIC_ROLE_WORDS
+from .orgmatch import OrgMatcher, chunks
 
 # Words that follow "of"/"at" in titles but are functions, not organisations ("VP of Infrastructure").
 FUNCTION_WORDS = {"infrastructure", "engineering", "product", "products", "sales", "marketing", "operations", "research",
@@ -45,10 +46,11 @@ class Subject:
     role: str | None = None
     location: str | None = None
     known_urls: list[str] = field(default_factory=list)
+    organization_aliases: list[str] = field(default_factory=list)
 
-    @property
-    def org_core(self) -> str | None:
-        return org_core(self.organization)
+    def matcher(self) -> OrgMatcher:
+        return OrgMatcher(self.organization, self.organization_aliases, self.organization_domain,
+                          {self.first, self.last})
 
     @property
     def role_terms(self) -> set[str]:
@@ -75,6 +77,7 @@ class Mention:
     window: str
     target_org: bool = False
     other_orgs: list[str] = field(default_factory=list)
+    partial_orgs: list[str] = field(default_factory=list)  # e.g. "Nimbus" for "Nimbus Compute": unclear
     historical: bool = False
     role_near: bool = False
     occupation: str | None = None
@@ -96,6 +99,7 @@ class DocEvidence:
     profile_links: list[str] = field(default_factory=list)
     surname_only: bool = False
     text_available: bool = True
+    origin_group: str | None = None  # phase 6: independence is counted by origin group when known
 
 
 def _sentences(text: str) -> list[str]:
@@ -149,8 +153,8 @@ def _orgs_tied_to_name(window: str, m: re.Match, subject: Subject) -> list[str]:
 
 def extract(*, doc_id: str, url: str, domain: str, registrable: str, published_at: str | None,
             duplicate_of: str | None, title: str | None, text: str | None, metadata: dict | None,
-            subject: Subject) -> DocEvidence:
-    ev = DocEvidence(doc_id, url, domain, registrable, published_at, duplicate_of)
+            subject: Subject, origin_group: str | None = None) -> DocEvidence:
+    ev = DocEvidence(doc_id, url, domain, registrable, published_at, duplicate_of, origin_group=origin_group)
     meta = metadata or {}
     ev.profile_links = sorted(set(meta.get("same_as", []) + meta.get("rel_me", [])))
     od = subject.organization_domain
@@ -161,7 +165,7 @@ def extract(*, doc_id: str, url: str, domain: str, registrable: str, published_a
         ev.text_available = False
         return ev
     rx = subject.name_regex()
-    core = subject.org_core
+    matcher = subject.matcher()
     sentences = _sentences(f"{title or ''}\n{text}")
     for i, s in enumerate(sentences):
         for m in rx.finditer(s):
@@ -171,12 +175,17 @@ def extract(*, doc_id: str, url: str, domain: str, registrable: str, published_a
             low = window.lower()
             mention = Mention(window=window[:300])
             orgs = _orgs_tied_to_name(window, m, subject)
-            attached_target = any(core and (core in o.lower() or o.lower() in core) for o in orgs)
-            mention.other_orgs = [o for o in orgs if not (core and (core in o.lower() or o.lower() in core))]
-            # The target counts if it is attached to this name, or merely present in the sentence while no
-            # other organisation is attached ("Priya Raman (Saffron Bakehouse) and Arjun (Nimbus)" is not
-            # evidence for Nimbus).
-            mention.target_org = bool(core and (attached_target or (core in low and not mention.other_orgs)))
+            kinds = [(o, matcher.match(o) if matcher else "different") for o in orgs]
+            attached_target = any(k in ("exact", "alias") for _, k in kinds)
+            mention.other_orgs = [o for o, k in kinds if k == "different"]
+            mention.partial_orgs = [o for o, k in kinds if k == "partial"]
+            # identity-rules-2: organisations match by tokens, never by substring ("Nimbus Compute Bank" is not
+            # "Nimbus Compute"). The target counts if it is attached to this name, or merely present in the
+            # sentence while nothing else is attached ("Priya Raman (Saffron Bakehouse) and Arjun (Nimbus)" is
+            # not evidence for Nimbus).
+            present = bool(matcher) and any(matcher.is_target(c) for c in chunks(window))
+            mention.target_org = attached_target or (present and not mention.other_orgs
+                                                     and not mention.partial_orgs)
             mention.historical = bool(PAST.search(window))
             terms = subject.role_terms
             mention.role_near = bool(terms) and terms <= set(_WORD.findall(low))

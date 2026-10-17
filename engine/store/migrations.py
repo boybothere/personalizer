@@ -342,12 +342,84 @@ DROP TABLE identity_decisions;
 DROP TABLE identity_resolutions
 """
 
+M0006_UP = """
+CREATE TABLE origin_groups (
+    document_id TEXT PRIMARY KEY REFERENCES documents(id) ON DELETE CASCADE,
+    run_id TEXT NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
+    origin_group TEXT NOT NULL,
+    reasons_json TEXT NOT NULL,
+    rule_version TEXT NOT NULL
+);
+CREATE TABLE claims (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id TEXT NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
+    resolution_id INTEGER NOT NULL REFERENCES identity_resolutions(id) ON DELETE CASCADE,
+    claim_type TEXT NOT NULL CHECK (claim_type IN ('stated_preference', 'activity', 'association',
+                                                   'activity_pattern')),
+    predicate TEXT NOT NULL,
+    object_text TEXT NOT NULL,
+    object_key TEXT NOT NULL,
+    polarity INTEGER CHECK (polarity IN (-1, 1)),
+    attribution_mode TEXT NOT NULL CHECK (attribution_mode IN ('authored', 'quoted', 'reported')),
+    attributed_to TEXT,
+    status TEXT NOT NULL CHECK (status IN ('verified', 'strongly_supported', 'tentative', 'conflicting',
+                                           'rejected', 'insufficient_evidence')),
+    confidence TEXT NOT NULL CHECK (confidence IN ('high', 'medium', 'low', 'none')),
+    flags_json TEXT NOT NULL,
+    reasons_json TEXT NOT NULL,
+    origin_groups INTEGER NOT NULL,
+    newest_date TEXT,
+    identity_status TEXT NOT NULL,
+    gate_signature TEXT NOT NULL,
+    rule_version TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    superseded_by INTEGER,
+    supersede_reason TEXT
+);
+CREATE TABLE claim_evidence (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    claim_id INTEGER NOT NULL REFERENCES claims(id) ON DELETE CASCADE,
+    run_id TEXT NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
+    document_id TEXT REFERENCES documents(id) ON DELETE SET NULL,
+    role TEXT NOT NULL CHECK (role IN ('supports', 'contradicts')),
+    source_url TEXT NOT NULL,
+    evidence_kind TEXT NOT NULL,
+    published_at TEXT,
+    published_source TEXT,
+    date_conflict INTEGER NOT NULL DEFAULT 0,
+    event_date TEXT,
+    origin_group TEXT NOT NULL,
+    document_identity_status TEXT NOT NULL,
+    subject_link TEXT NOT NULL CHECK (subject_link IN ('subject_of_sentence', 'authored_page', 'attributed_quote')),
+    evidence_text TEXT,
+    evidence_sha256 TEXT NOT NULL,
+    span_start INTEGER NOT NULL,
+    span_end INTEGER NOT NULL,
+    extraction_rule TEXT NOT NULL,
+    text_expires_at TEXT,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX idx_claims_run ON claims(run_id, status);
+CREATE INDEX idx_cev_claim ON claim_evidence(claim_id);
+CREATE INDEX idx_cev_run ON claim_evidence(run_id)
+"""
+
+M0006_DOWN = """
+DROP INDEX idx_cev_run;
+DROP INDEX idx_cev_claim;
+DROP INDEX idx_claims_run;
+DROP TABLE claim_evidence;
+DROP TABLE claims;
+DROP TABLE origin_groups
+"""
+
 MIGRATIONS: list[Migration] = [
     Migration(1, "observability_and_retrieval", M0001_UP, M0001_DOWN),
     Migration(2, "search_layer_and_provider_ledger", M0002_UP, M0002_DOWN),
     Migration(3, "adaptive_planner", M0003_UP, M0003_DOWN),
     Migration(4, "fetch_connected_ip", M0004_UP, M0004_DOWN),
     Migration(5, "identity_resolution", M0005_UP, M0005_DOWN),
+    Migration(6, "claims", M0006_UP, M0006_DOWN),
 ]
 
 _BOOKKEEPING = """CREATE TABLE IF NOT EXISTS schema_migrations (

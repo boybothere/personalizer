@@ -6,6 +6,7 @@ import json
 import sqlite3
 from datetime import date
 
+from .. import origins
 from ..store import repo
 from .evidence import Subject, extract
 from .resolver import Resolution, profile_key, resolve
@@ -34,6 +35,7 @@ def _profile_leads(conn: sqlite3.Connection, run_id: str, subject: Subject) -> l
 
 def resolve_run(conn: sqlite3.Connection, run_id: str, subject: Subject, today: date | None = None) -> int:
     """Resolve identity for a run's documents (while text is retained) and store the result."""
+    groups = origins.ensure(conn, run_id)  # independence is counted by origin group (identity-rules-2)
     evidence = []
     for d in conn.execute("""SELECT d.id, d.source_url, d.title, d.text, d.metadata_json, d.published_at,
                                     d.duplicate_of, u.domain, u.registrable_domain
@@ -43,7 +45,7 @@ def resolve_run(conn: sqlite3.Connection, run_id: str, subject: Subject, today: 
                                 registrable=d["registrable_domain"], published_at=d["published_at"],
                                 duplicate_of=d["duplicate_of"], title=d["title"], text=d["text"],
                                 metadata=json.loads(d["metadata_json"]) if d["metadata_json"] else {},
-                                subject=subject))
+                                subject=subject, origin_group=groups.get(d["id"])))
     result = resolve(subject, evidence, leads=_profile_leads(conn, run_id, subject),
                      overrides=active_overrides(conn, run_id), today=today)
     return save(conn, run_id, result)
