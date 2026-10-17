@@ -133,8 +133,8 @@ def _has_table(conn: sqlite3.Connection, name: str) -> bool:
 
 def maintenance_metrics(conn: sqlite3.Connection, r: str) -> dict:
     """Retention purge and WAL checkpoint outcome recorded when this run started (never discarded)."""
-    row = conn.execute("SELECT reason, data_json FROM trace_events WHERE run_id=? AND stage='maintenance'"
-                       " ORDER BY id LIMIT 1", (r,)).fetchone()
+    row = conn.execute("SELECT reason, data_json FROM trace_events WHERE run_id=? AND stage='maintenance' AND"
+                       " action='startup' ORDER BY id LIMIT 1", (r,)).fetchone()
     if not row:
         return {"available": False, "reason": "no start-of-run maintenance recorded for this run"}
     return {"available": True, "status": row["reason"], **json.loads(row["data_json"])}

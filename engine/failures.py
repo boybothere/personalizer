@@ -54,6 +54,7 @@ class Code(str, Enum):
     BUDGET_TIME = "BUDGET_TIME"
     BUDGET_COST = "BUDGET_COST"
     CANCELLED = "CANCELLED"
+    RUN_INTERRUPTED = "RUN_INTERRUPTED"
     # search providers
     SEARCH_NOT_CONFIGURED = "SEARCH_NOT_CONFIGURED"
     SEARCH_AUTH_ERROR = "SEARCH_AUTH_ERROR"
@@ -127,6 +128,8 @@ EXPLANATIONS: dict[Code, str] = {
     Code.BUDGET_TIME: "The wall-clock time limit for this run was reached.",
     Code.BUDGET_COST: "The cost limit for this run was reached.",
     Code.CANCELLED: "The run was cancelled.",
+    Code.RUN_INTERRUPTED: "The run stopped without finishing (crash or termination) and was found still marked "
+                          "running at a later start; it was marked failed and its stored text was redacted.",
     Code.SEARCH_NOT_CONFIGURED: "The provider has no API key configured.",
     Code.SEARCH_AUTH_ERROR: "The provider rejected the API key (401/403).",
     Code.SEARCH_QUOTA_EXHAUSTED: "The provider reports the plan or credit allowance is used up (402/432/433); "

@@ -53,6 +53,9 @@ class ExtractSettings(BaseModel):
 class Retention(BaseModel):
     run_days: int = 30
     text_days: int = 7
+    # a run still marked 'running' this long after it started is treated as interrupted (crash or kill); the
+    # effective threshold is never below the run wall-clock budget plus a margin, so a live run is not touched
+    interrupted_after_seconds: int = Field(1800, ge=60)
 
 
 class Platforms(BaseModel):
