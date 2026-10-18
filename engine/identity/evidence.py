@@ -169,7 +169,9 @@ def extract(*, doc_id: str, url: str, domain: str, registrable: str, published_a
     ev.profile_links = sorted(set(meta.get("same_as", []) + meta.get("rel_me", [])))
     od = subject.organization_domain
     ev.official_domain = bool(od and (domain == od or domain.endswith("." + od)))
-    known = [k.rstrip("/").lower() for k in subject.known_urls]
+    from ..privacy import safe_url  # stored URLs may have a withheld path; compare in both forms
+
+    known = [x.rstrip("/").lower() for k in subject.known_urls for x in {k, safe_url(k) or k}]
     ev.known_url = url.rstrip("/").lower() in known or any(l.rstrip("/").lower() in known for l in ev.profile_links)
     if text is None:
         ev.text_available = False

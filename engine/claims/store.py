@@ -107,7 +107,7 @@ def update_claims(conn: sqlite3.Connection, run_id: str, subject: Subject, today
             r["published_source"], bool(r["date_conflict"]), r["evidence_kind"], statuses[r["id"]],
             groups.get(r["id"], r["id"]),
             authored=bool(r["author"] and subject.name_regex().search(r["author"]))
-            or url in {k.rstrip("/").lower() for k in subject.known_urls},
+            or url in {x.rstrip("/").lower() for k in subject.known_urls for x in {k, privacy.safe_url(k) or k}},
             text_expires_at=r["text_expires_at"])
     cands, dropped, no_claim = [], {}, 0
     for d in docs.values():

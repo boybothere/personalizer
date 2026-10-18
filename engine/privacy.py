@@ -90,11 +90,28 @@ def url_category(url: str) -> str | None:
     return category(words) if words else None
 
 
+def url_path_category(url: str) -> str | None:
+    """Claim-level category of the URL path (undated travel or places); such URLs may be fetched but their path is
+    not stored."""
+    try:
+        parts = urlsplit(url)
+    except ValueError:
+        return None
+    words = re.sub(r"[^A-Za-z0-9]+", " ", unquote(f"{parts.path} {parts.query}")).strip()
+    return scope.classify(words, _today()) if words else None
+
+
 def safe_url(url: str | None) -> str | None:
-    if not url or url.startswith("withheld:"):
+    """Storage form of a URL. Sensitive-trait, residence or whereabouts paths: fully withheld (never requested).
+    Undated travel or place paths: the host is kept as the minimal source identity, the path is stored as a hash."""
+    if not url or url.startswith("withheld:") or "/withheld-path:" in url:
         return url
+    digest = hashlib.sha256(url.encode()).hexdigest()[:24]
     if url_category(url):
-        return WITHHELD_PREFIX + hashlib.sha256(url.encode()).hexdigest()[:24]
+        return WITHHELD_PREFIX + digest
+    if url_path_category(url):
+        parts = urlsplit(url)
+        return f"{parts.scheme}://{parts.netloc}/withheld-path:{digest}"
     return url
 
 
