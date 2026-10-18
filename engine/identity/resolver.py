@@ -18,6 +18,12 @@ from .evidence import DocEvidence, Subject
 
 RULE_VERSION = "identity-rules-2"  # rules-2: token organisation matching; independence by origin group
 SUPPORTING = {"confirmed", "strong"}
+# How much a document status lets through (support for the subject, claim gating), lowest = most conservative.
+# Not the same as the strength order in the module docstring: historical gates claims (claims/store.py) while
+# possible does not; ambiguous and rejected block in different ways (conflict 2 vs. shared-profile conflict and
+# staleness), so neither dominates and they rank equal.
+PERMISSIVENESS = {"rejected": 0, "ambiguous": 0, "insufficient": 1, "possible": 2, "historical": 3, "strong": 4,
+                  "confirmed": 5}
 STALE_AFTER_DAYS = 730
 PROFILE_HOSTS = {"github.com", "medium.com", "x.com", "twitter.com", "linkedin.com", "instagram.com", "bsky.app",
                  "facebook.com", "substack.com", "mastodon.social"}
@@ -229,9 +235,20 @@ def resolve(subject: Subject, evidence: list[DocEvidence], *, leads: list[str] |
                                for l in by_id[dd.doc_id].profile_links if (k := profile_key(l))}
     docs = [attribute(e, subject, confirmed_links) for e in evidence]
     for dd in docs:
-        if dd.doc_id in carried and (not by_id[dd.doc_id].text_available or by_id[dd.doc_id].redacted_after_identity):
+        if dd.doc_id in carried and not by_id[dd.doc_id].text_available:
             dd.status, dd.candidate = carried[dd.doc_id]
             dd.reasons = [f"text expired; earlier rule decision carried forward ({dd.status})"]
+        elif dd.doc_id in carried and by_id[dd.doc_id].redacted_after_identity:
+            # redacted after identity: keep whichever is more conservative, the earlier decision (full text) or the
+            # one recomputed from the remaining text, so removed evidence cannot keep a stale strong status alive
+            earlier, recomputed = carried[dd.doc_id], dd.status
+            if PERMISSIVENESS.get(earlier[0], 0) <= PERMISSIVENESS.get(recomputed, 0):
+                dd.status, dd.candidate = earlier
+                dd.reasons = [f"redacted after identity; earlier decision kept ({dd.status}), it is not less"
+                              f" conservative than the remaining text ({recomputed})"]
+            else:
+                dd.reasons = [f"redacted after identity; the remaining text supports only {recomputed}, so the"
+                              f" earlier {earlier[0]} is not carried forward"] + dd.reasons
         if dd.doc_id in overrides:
             dd.reasons = [f"user override: {dd.status} -> {overrides[dd.doc_id]}"] + dd.reasons
             dd.status, dd.decided_by = overrides[dd.doc_id], "user"

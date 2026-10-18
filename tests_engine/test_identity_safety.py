@@ -223,3 +223,49 @@ def test_removed_signal_interacts_safely_with_overrides_and_claim_supersession()
     resolve_run(conn, rid, subj, today=TODAY)
     out = update_claims(conn, rid, subj, today=TODAY, settings=SETTINGS)
     assert _claims(conn, rid) == [] and out["superseded_by_reason"]["identity_changed"] == len(gated)
+
+
+# ---------------------------------------------------------------- P1: no stale strong after redaction (release gate)
+
+
+def test_p1_redacted_evidence_cannot_keep_a_stale_strong_status():
+    case = C("P1", "X", [
+        D("https://techpress.example/a", [("Priya Raman of Nimbus Compute spoke at the summit in Bengaluru.", ""),
+                                          ("Priya Raman is a member of the Rotary Club.", "")], "2026-05-01"),
+        D("https://summit.example/b", [("Priya Raman, VP of Infrastructure at Nimbus Compute, said capacity is"
+                                        " growing.", ""), ("She is a mentor at Women Who Code.", "")], "2026-06-01"),
+        D("https://unrelated.example/c", [("Unrelated page about chips.", "")], "2026-05-01")], subject=NO_DOMAIN)
+    conn, rid, _, _ = run_case(case, redact=True, subject_name=SUBJECT["name"])
+    # initial run judged the full text: d00 strong (organisation + the subject's location), two independent sources
+    assert _docs(conn, rid)["d00"] == "strong" and _status(conn, rid) == "strongly_supported"
+    keys = {c[1] for c in _claims(conn, rid)}
+    assert {"rotary club", "women who code"} <= keys
+    # end-of-run redaction removed the only sentence tying d00's name to the organisation
+    assert "Bengaluru" not in conn.execute("SELECT text FROM documents WHERE id='d00'").fetchone()[0]
+
+    subj = subject_of(case)
+
+    def again():
+        resolve_run(conn, rid, subj, today=TODAY)
+        return update_claims(conn, rid, subj, today=TODAY, settings=SETTINGS)
+
+    override_decision(conn, rid, "d02", "rejected", "reviewer: unrelated page")  # an unrelated identity change
+    out = again()
+    assert _docs(conn, rid)["d00"] == "insufficient" and _status(conn, rid) == "possible"
+    assert _claims(conn, rid) == []  # the claims the stronger status had gated are withdrawn
+    assert out["withheld"] == "identity_unresolved" and out["claims_superseded"] == 2
+    assert {r[0] for r in conn.execute("SELECT supersede_reason FROM claims WHERE run_id=? AND superseded_by IS"
+                                       " NOT NULL", (rid,))} == {"identity_changed"}
+    again()  # repeated resolution is stable
+    assert _docs(conn, rid)["d00"] == "insufficient" and _status(conn, rid) == "possible" and _claims(conn, rid) == []
+
+    override_decision(conn, rid, "d00", "strong", "reviewer checked the original page")
+    again()
+    assert _docs(conn, rid)["d00"] == "strong" and _status(conn, rid) == "strongly_supported"
+    assert {"rotary club", "women who code"} <= {c[1] for c in _claims(conn, rid)}
+    override_decision(conn, rid, "d00", "insufficient", "reviewer: reversed after a second look")
+    again()
+    assert _docs(conn, rid)["d00"] == "insufficient" and _status(conn, rid) == "possible" and _claims(conn, rid) == []
+    user = conn.execute("SELECT status, superseded_by FROM identity_decisions WHERE run_id=? AND decided_by='user'"
+                        " AND target_ref='d00' ORDER BY id", (rid,)).fetchall()
+    assert [u["status"] for u in user] == ["strong", "insufficient"] and user[0]["superseded_by"] is not None
