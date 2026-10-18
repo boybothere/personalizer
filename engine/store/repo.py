@@ -165,9 +165,14 @@ def add_attempt(conn: sqlite3.Connection, run_id: str, url_id: int, a: dict) -> 
 
 
 def add_document(conn: sqlite3.Connection, run_id: str, url_id: int, fetch_attempt_id: int | None, d: dict,
-                 text_days: int) -> str:
+                 text_days: int, subject_name: str | None = None) -> str:
+    """Write boundary: storage-level out-of-scope sentences are removed from text and title before writing; the
+    document's flags record how many were removed and how many named the run's subject (counts only)."""
     did = new_id("doc")
     created = now()
+    text, r1, n1 = privacy.filter_with_signal(d.get("text"), subject_name)
+    title, r2, n2 = privacy.filter_with_signal(d.get("title"), subject_name)
+    flags = privacy.with_removal(d.get("flags"), r1 + r2, n1 + n2) if r1 + r2 else d.get("flags")
     conn.execute(
         "INSERT INTO documents (id, run_id, url_id, fetch_attempt_id, evidence_kind, source_url, canonical_link,"
         " content_type, title, author, site_name, language, published_at, published_source, date_candidates_json,"
@@ -175,12 +180,12 @@ def add_document(conn: sqlite3.Connection, run_id: str, url_id: int, fetch_attem
         " metadata_json, text, text_expires_at, created_at) VALUES"
         " (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         (did, run_id, url_id, fetch_attempt_id, d["evidence_kind"], privacy.safe_url(d["source_url"]),
-         privacy.safe_url(d.get("canonical_link")), d.get("content_type"), privacy.filter_text(d.get("title")),
+         privacy.safe_url(d.get("canonical_link")), d.get("content_type"), title,
          d.get("author"), d.get("site_name"), d.get("language"),
          d.get("published_at"), d.get("published_source"), _json(d.get("date_candidates")),
          int(bool(d.get("date_conflict"))), d.get("modified_at"), d.get("text_chars", 0), d.get("text_sha256"),
          d.get("simhash"), int(bool(d.get("usable"))), d.get("failure_code"), d["extractor"],
-         _json(d.get("flags")), _json(privacy.scrub_obj(d.get("metadata"))), privacy.filter_text(d.get("text")),
+         _json(flags), _json(privacy.scrub_obj(d.get("metadata"))), text,
          iso(created + timedelta(days=text_days)) if d.get("text") or d.get("title") else None, iso(created)),
     )
     return did

@@ -68,6 +68,7 @@ class Retriever:
         self.today = today or datetime.now(timezone.utc).date()
         self.rng = rng
         self.fallback = fallback  # async (run_id, url, reason_code, budget) -> dict | None (provider extract)
+        self.subject_name: str | None = None  # research runs: lets the write boundary count removed mentions
         self.stop: Code | None = None
 
     # ------------------------------------------------------------------ public
@@ -237,7 +238,7 @@ class Retriever:
             return
         doc = repo.add_document(self.conn, run_id, url_id, attempt_ids[-1] if attempt_ids else None,
                                 {**record, "evidence_kind": "provider_extract", "source_url": url},
-                                self.cfg.retention.text_days)
+                                self.cfg.retention.text_days, subject_name=self.subject_name)
         repo.trace(self.conn, run_id, "fallback", "provider_extract_used", ref_type="document", ref_id=doc,
                    reason=f"own retrieval failed technically: {reason.value}",
                    data={"provider": record.get("metadata", {}).get("provider"), "usable": record.get("usable")})
@@ -278,7 +279,7 @@ class Retriever:
                 doc = repo.add_document(self.conn, run_id, url_id, attempt_id, {
                     "evidence_kind": "fetched_page", "source_url": result.final_url, "content_type": result.content_type,
                     "title": feed.feed_title, "usable": False, "failure_code": feed.failure_code, "text_chars": 0,
-                    "extractor": "feedparser"}, days)
+                    "extractor": "feedparser"}, days, subject_name=self.subject_name)
                 repo.trace(self.conn, run_id, "extraction", "unusable", ref_type="document", ref_id=doc,
                            reason=feed.failure_code)
                 return None
@@ -289,7 +290,7 @@ class Retriever:
             for entry in feed.entries:
                 doc = repo.add_document(self.conn, run_id, url_id, attempt_id,
                                         {**entry.record, "evidence_kind": "feed_entry", "source_url": entry.link,
-                                         "content_type": result.content_type}, days)
+                                         "content_type": result.content_type}, days, subject_name=self.subject_name)
                 repo.trace(self.conn, run_id, "extraction", "usable" if entry.record["usable"] else "unusable",
                            ref_type="document", ref_id=doc, reason=entry.record["failure_code"] or "feed entry")
             return None
@@ -299,7 +300,7 @@ class Retriever:
             ex = extract_text(result.body or b"", result.content_type, cfg)
         doc = repo.add_document(self.conn, run_id, url_id, attempt_id,
                                 {**ex.record(), "evidence_kind": "fetched_page", "source_url": result.final_url,
-                                 "content_type": result.content_type}, days)
+                                 "content_type": result.content_type}, days, subject_name=self.subject_name)
         repo.trace(self.conn, run_id, "extraction", "usable" if ex.usable else "unusable", ref_type="document",
                    ref_id=doc, reason=ex.failure_code or f"{len(ex.text)} chars",
                    data={"published_at": ex.published.value if ex.published else None,

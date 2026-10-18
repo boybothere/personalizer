@@ -101,6 +101,8 @@ class DocEvidence:
     surname_only: bool = False
     text_available: bool = True
     origin_group: str | None = None  # phase 6: independence is counted by origin group when known
+    removed_named: int = 0  # out-of-scope sentences naming the subject were removed (count only; no text)
+    redacted_after_identity: bool = False  # removal happened after identity had seen the full text
 
 
 def _sentences(text: str) -> list[str]:

@@ -27,8 +27,11 @@ def recover_interrupted(conn: sqlite3.Connection, cfg: EngineConfig, at: datetim
     recovered = []
     for r in conn.execute("SELECT id, input_json FROM runs WHERE status='running' AND started_at < ? ORDER BY"
                           " started_at", (cutoff,)).fetchall():
-        location = ((json.loads(r["input_json"] or "{}").get("input") or {}).get("location"))
-        redacted = redact_run(conn, r["id"], now.date(), location)
+        inp = (json.loads(r["input_json"] or "{}").get("input") or {})
+        resolved_before = conn.execute("SELECT 1 FROM identity_resolutions WHERE run_id=? LIMIT 1",
+                                       (r["id"],)).fetchone() is not None
+        redacted = redact_run(conn, r["id"], now.date(), inp.get("location"), subject_name=inp.get("name"),
+                              after_identity=resolved_before)
         gate = {"gate": "run_finished", "passed": False, "code": Code.RUN_INTERRUPTED.value,
                 "explanation": explain(Code.RUN_INTERRUPTED), "detail": f"recovered at {repo.iso(now)}"}
         changed = conn.execute("UPDATE runs SET status='failed', stop_reason='interrupted', gates_json=?,"

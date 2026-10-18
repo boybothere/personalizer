@@ -7,6 +7,7 @@ counts per category are recorded, never the sentence or its topic.
 
 from __future__ import annotations
 
+import json
 import re
 import sqlite3
 from datetime import date
@@ -135,18 +136,36 @@ def _blank(segment: str) -> str:
 
 def redact_text(text: str, today: date, location: str | None = None,
                 storage_only: bool = False) -> tuple[str, dict[str, int]]:
+    out, counts, _ = redact_text_signal(text, today, location, storage_only)
+    return out, counts
+
+
+def redact_text_signal(text: str, today: date, location: str | None = None, storage_only: bool = False,
+                       subject_name: str | None = None) -> tuple[str, dict[str, int], int]:
+    """Redact, and count how many removed sentences contained the subject's full name (identity-safety signal)."""
+    from ..identity.evidence import Subject
+
+    name_rx = Subject(subject_name).name_regex() if subject_name and len(subject_name.split()) >= 1 else None
     counts: dict[str, int] = {}
+    named = 0
     out = text
     for a, b in sentence_spans(text):
         cat = classify(text[a:b], today, location, storage_only)
         if cat:
             counts[cat] = counts.get(cat, 0) + 1
+            named += bool(name_rx and name_rx.search(text[a:b]))
             out = out[:a] + _blank(out[a:b]) + out[b:]
-    return out, counts
+    return out, counts, named
 
 
-def redact_run(conn: sqlite3.Connection, run_id: str, today: date, location: str | None = None) -> dict:
-    """Remove out-of-scope sentences from every stored text of a run (documents, titles, snippets). Counts only."""
+def redact_run(conn: sqlite3.Connection, run_id: str, today: date, location: str | None = None,
+               subject_name: str | None = None, after_identity: bool = False) -> dict:
+    """Remove out-of-scope sentences from every stored text of a run (documents, titles, snippets). Counts only.
+
+    Each document records how many sentences were removed and how many named the subject (flags, no text);
+    `after_identity` marks removals that identity resolution had already seen, so a later re-resolution carries
+    the earlier decision forward instead of re-judging the page from redacted text."""
+    from .. import privacy
     totals: dict[str, int] = {}
     docs = 0
 
@@ -154,16 +173,21 @@ def redact_run(conn: sqlite3.Connection, run_id: str, today: date, location: str
         for k, v in counts.items():
             totals[k] = totals.get(k, 0) + v
 
-    for r in conn.execute("SELECT id, text, title FROM documents WHERE run_id=? AND (text IS NOT NULL OR title IS NOT"
-                          " NULL)", (run_id,)).fetchall():
-        new_text, c1 = redact_text(r["text"], today, location) if r["text"] else (None, {})
-        new_title, c2 = redact_text(r["title"], today, location) if r["title"] else (None, {})
+    for r in conn.execute("SELECT id, text, title, flags_json FROM documents WHERE run_id=? AND (text IS NOT NULL OR"
+                          " title IS NOT NULL)", (run_id,)).fetchall():
+        new_text, c1, n1 = redact_text_signal(r["text"], today, location, subject_name=subject_name) \
+            if r["text"] else (None, {}, 0)
+        new_title, c2, n2 = redact_text_signal(r["title"], today, location, subject_name=subject_name) \
+            if r["title"] else (None, {}, 0)
         if c1 or c2:
             docs += 1
             add(c1)
             add(c2)
-            conn.execute("UPDATE documents SET text=?, title=? WHERE id=?",
-                         (new_text if c1 else r["text"], new_title if c2 else r["title"], r["id"]))
+            flags = privacy.with_removal(json.loads(r["flags_json"]) if r["flags_json"] else [],
+                                         sum(c1.values()) + sum(c2.values()), n1 + n2, after_identity)
+            conn.execute("UPDATE documents SET text=?, title=?, flags_json=? WHERE id=?",
+                         (new_text if c1 else r["text"], new_title if c2 else r["title"], json.dumps(flags),
+                          r["id"]))
     for table, cols in (("leads", ("snippet",)), ("search_results", ("snippet", "title"))):
         for r in conn.execute(f"SELECT id, {', '.join(cols)} FROM {table} WHERE run_id=?", (run_id,)).fetchall():
             updates = {}

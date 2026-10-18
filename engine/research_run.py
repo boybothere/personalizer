@@ -61,6 +61,7 @@ async def research_run(conn: sqlite3.Connection, cfg: EngineConfig, inp: Researc
     retriever = Retriever(conn, cfg, transport=transport, resolver=resolver, sleep=sleep, today=today,
                           fallback=make_tavily_fallback(conn, cfg, tavily)
                           if cfg.providers.fallback_enabled and isinstance(tavily, TavilyProvider) else None)
+    retriever.subject_name = inp.name
     fetcher = retriever.make_fetcher(run_id, budget)
     try:
         controller = AdaptiveController(conn, cfg, run_id, budget, runner, retriever, fetcher, inp, objectives)
@@ -82,7 +83,8 @@ async def research_run(conn: sqlite3.Connection, cfg: EngineConfig, inp: Researc
         # out-of-scope sentences (sensitive traits, whereabouts, residence, other people) are removed from all
         # stored text of the run; the checkpoint moves the redacted pages out of the WAL (PHASE6_PLAN.md §2.7.1)
         with stage(conn, run_id, "privacy_redaction"):
-            redacted = redact_run(conn, run_id, today or date.today(), inp.location)
+            redacted = redact_run(conn, run_id, today or date.today(), inp.location, subject_name=inp.name,
+                                  after_identity=True)
             repo.trace(conn, run_id, "privacy_redaction", "redacted", reason="out_of_scope_sentences",
                        data={**redacted, "checkpoint_complete": repo._checkpoint(conn)})
     finally:

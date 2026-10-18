@@ -38,7 +38,7 @@ def resolve_run(conn: sqlite3.Connection, run_id: str, subject: Subject, today: 
     groups = origins.ensure(conn, run_id)  # independence is counted by origin group (identity-rules-2)
     evidence = []
     for d in conn.execute("""SELECT d.id, d.source_url, d.title, d.text, d.metadata_json, d.published_at,
-                                    d.duplicate_of, u.domain, u.registrable_domain
+                                    d.duplicate_of, d.flags_json, u.domain, u.registrable_domain
                              FROM documents d JOIN urls u ON u.id = d.url_id
                              WHERE d.run_id=? AND d.usable=1 ORDER BY d.created_at, d.id""", (run_id,)):
         evidence.append(extract(doc_id=d["id"], url=d["source_url"], domain=d["domain"],
@@ -46,7 +46,10 @@ def resolve_run(conn: sqlite3.Connection, run_id: str, subject: Subject, today: 
                                 duplicate_of=d["duplicate_of"], title=d["title"], text=d["text"],
                                 metadata=json.loads(d["metadata_json"]) if d["metadata_json"] else {},
                                 subject=subject, origin_group=groups.get(d["id"])))
-    expired = {e.doc_id for e in evidence if not e.text_available}
+        _, named, after = privacy.removal_signal(json.loads(d["flags_json"]) if d["flags_json"] else [])
+        evidence[-1].removed_named, evidence[-1].redacted_after_identity = named, after
+    # carried forward: pages whose text expired, or was redacted after identity already judged the full text
+    expired = {e.doc_id for e in evidence if not e.text_available or e.redacted_after_identity}
     carried = {r["target_ref"]: (r["status"], r["candidate_key"]) for r in conn.execute(
         "SELECT target_ref, status, candidate_key FROM identity_decisions WHERE run_id=? AND target_type='document'"
         " AND decided_by='rules' AND superseded_by IS NULL", (run_id,)) if r["target_ref"] in expired}

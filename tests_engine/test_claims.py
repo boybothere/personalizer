@@ -369,7 +369,13 @@ def test_full_research_run_redacts_pages_and_snippets(tmp_path):
     # the page sentences (family) and the snippet (health) were already filtered at the write boundary, so the
     # end-of-run pass finds none of them left (corrective pass: write-boundary filtering)
     assert not {"family", "health"} & set(red["sentences_by_category"])
-    assert m["claims"]["by_type"].get("association") == 1  # the in-scope sentence still yields its claim
+    # corrective pass 2: the removed sentences named the subject, so the page cannot support identity on its own
+    # (ambiguous) and its in-scope association is no longer gated into a claim
+    assert not m["claims"]["by_type"].get("association")
+    statuses = {r[0]: r[1] for r in conn.execute(
+        "SELECT d.source_url, i.status FROM identity_decisions i JOIN documents d ON d.id=i.target_ref WHERE"
+        " i.run_id=? AND i.target_type='document' AND i.superseded_by IS NULL", (rid,))}
+    assert statuses["https://profiles.example/priya"] == "ambiguous"
     conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
     assert _scan(tmp_path, sensitive + [snippet]) == []
     assert sorted(f.name for f in tmp_path.iterdir()) <= ["r.db", "r.db-shm", "r.db-wal"]

@@ -79,6 +79,19 @@ def profile_key(url: str) -> tuple[str, str] | None:
 
 
 def attribute(ev: DocEvidence, subject: Subject, confirmed_profiles: set[tuple[str, str]]) -> DocDecision:
+    """Rules below, then the identity-safety signal: a page whose out-of-scope text named the subject was only
+    partly seen, so it cannot support identity on its own (confirmed/strong/historical become ambiguous)."""
+    dd = _attribute(ev, subject, confirmed_profiles)
+    if ev.removed_named:
+        dd.signals = {**dd.signals, "removed_named": ev.removed_named}
+        if dd.status in ("confirmed", "strong", "historical"):
+            dd.reasons = [f"{ev.removed_named} sentence(s) naming the subject were removed as out of scope; the"
+                          f" remaining evidence is incomplete"] + dd.reasons
+            dd.status = "ambiguous"
+    return dd
+
+
+def _attribute(ev: DocEvidence, subject: Subject, confirmed_profiles: set[tuple[str, str]]) -> DocDecision:
     sig = {"official_domain": ev.official_domain, "known_url": ev.known_url, "mentions": len(ev.mentions),
            "surname_only": ev.surname_only, "text_available": ev.text_available}
 
@@ -216,7 +229,7 @@ def resolve(subject: Subject, evidence: list[DocEvidence], *, leads: list[str] |
                                for l in by_id[dd.doc_id].profile_links if (k := profile_key(l))}
     docs = [attribute(e, subject, confirmed_links) for e in evidence]
     for dd in docs:
-        if dd.doc_id in carried and not by_id[dd.doc_id].text_available:
+        if dd.doc_id in carried and (not by_id[dd.doc_id].text_available or by_id[dd.doc_id].redacted_after_identity):
             dd.status, dd.candidate = carried[dd.doc_id]
             dd.reasons = [f"text expired; earlier rule decision carried forward ({dd.status})"]
         if dd.doc_id in overrides:
@@ -239,13 +252,17 @@ def resolve(subject: Subject, evidence: list[DocEvidence], *, leads: list[str] |
     # conflict 1: a profile we attribute to the subject also appears on a page tying the name elsewhere
     trusted = {(p.platform, p.handle) for p in profiles if p.status in ("confirmed", "strong")}
     for dd in docs:
-        if dd.status == "rejected" and dd.candidate.startswith("namesake:"):
+        namesake = dd.status == "rejected" and dd.candidate.startswith("namesake:")
+        # identity-safety signal: a page whose removed text named the subject may tie the name elsewhere
+        removed = bool(by_id[dd.doc_id].removed_named) and dd.status not in SUPPORTING
+        if namesake or removed:
             shared = [f"{k[0]}/{k[1]}" for l in by_id[dd.doc_id].profile_links if (k := profile_key(l)) in trusted]
             if shared:
                 newer = _newer(by_id[dd.doc_id].published_at, [by_id[x.doc_id].published_at for x in supportive])
-                conflicts.append(f"{dd.url} ties the same profile ({', '.join(shared)}) to "
-                                 f"{dd.candidate.split(':', 1)[1]}" + (" and is newer: possible role change" if newer
-                                                                       else ""))
+                where = dd.candidate.split(':', 1)[1] if namesake else \
+                    "an affiliation described in text removed as out of scope"
+                conflicts.append(f"{dd.url} ties the same profile ({', '.join(shared)}) to {where}"
+                                 + (" and is newer: possible role change" if newer else ""))
     # conflict 2: ambiguous documents and nothing that outranks them
     ambiguous = [dd for dd in independent if dd.status == "ambiguous"]
     if ambiguous and not confirmed and len(strong_domains) < 2:
@@ -255,7 +272,9 @@ def resolve(subject: Subject, evidence: list[DocEvidence], *, leads: list[str] |
     stale = False
     support_dates = [by_id[dd.doc_id].published_at for dd in supportive if by_id[dd.doc_id].published_at]
     other_dates = [by_id[dd.doc_id].published_at for dd in independent
-                   if dd.candidate.startswith("namesake:") and by_id[dd.doc_id].published_at]
+                   if (dd.candidate.startswith("namesake:") or (by_id[dd.doc_id].removed_named
+                                                                and dd.status not in SUPPORTING))
+                   and by_id[dd.doc_id].published_at]
     if support_dates and len(support_dates) == len(supportive) and other_dates:
         newest_support = max(date.fromisoformat(x) for x in support_dates)
         if newest_support < today - timedelta(days=STALE_AFTER_DAYS) and \
@@ -293,6 +312,10 @@ def resolve(subject: Subject, evidence: list[DocEvidence], *, leads: list[str] |
     if dups:
         explanation.append(f"{len(dups)} duplicate profile(s) left unresolved: "
                            + ", ".join(f"{p.platform}/{p.handle}" for p in dups))
+    removed_docs = [e for e in evidence if e.removed_named]
+    if removed_docs:
+        explanation.append(f"{len(removed_docs)} document(s) had sentences naming the subject removed as out of"
+                           f" scope; their identity evidence is incomplete")
     explanation.extend(conflicts)
     return Resolution(status, status in ("confirmed", "strongly_supported"), explanation, docs, profiles,
                       candidates, conflicts)

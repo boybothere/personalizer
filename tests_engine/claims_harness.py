@@ -52,7 +52,7 @@ def seed(conn, case, prefix="") -> tuple[str, list[dict]]:
     return rid, placed
 
 
-def run_case(case, conn=None, redact=False, prefix=""):
+def run_case(case, conn=None, redact=False, prefix="", subject_name=None):
     conn = conn or connect(":memory:")
     rid, placed = seed(conn, case, prefix)
     subject = subject_of(case)
@@ -60,7 +60,7 @@ def run_case(case, conn=None, redact=False, prefix=""):
     resolve_run(conn, rid, subject, today=TODAY)
     result = update_claims(conn, rid, subject, today=TODAY, settings=SETTINGS)
     if redact:
-        scope.redact_run(conn, rid, TODAY, subject.location)
+        scope.redact_run(conn, rid, TODAY, subject.location, subject_name=subject_name, after_identity=True)
     return conn, rid, placed, result
 
 

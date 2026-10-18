@@ -36,9 +36,49 @@ def category(text: str) -> str | None:
 
 def filter_text(text: str | None) -> str | None:
     """Same-length placeholder over every storage-level out-of-scope sentence (offsets stay valid)."""
+    return filter_with_signal(text)[0]
+
+
+def filter_with_signal(text: str | None, subject_name: str | None = None) -> tuple[str | None, int, int]:
+    """(filtered text, sentences removed, removed sentences that contained the subject's full name).
+
+    The counts are the identity-safety signal: identity resolution needs to know that evidence naming the subject
+    was removed, without the sentence, the trait or the place being kept."""
     if not text:
-        return text
-    return scope.redact_text(text, _today(), None, storage_only=True)[0]
+        return text, 0, 0
+    out, counts, named = scope.redact_text_signal(text, _today(), None, storage_only=True,
+                                                  subject_name=subject_name)
+    return out, sum(counts.values()), named
+
+
+REMOVED, REMOVED_NAMED, AFTER_IDENTITY = "privacy_removed:", "privacy_removed_named:", "privacy_redacted_after_identity"
+
+
+def removal_signal(flags: list | None) -> tuple[int, int, bool]:
+    """(sentences removed, of which named the subject, removal happened after identity resolution)."""
+    removed = named = 0
+    after = False
+    for f in flags or []:
+        if f.startswith(REMOVED):
+            removed = int(f[len(REMOVED):])
+        elif f.startswith(REMOVED_NAMED):
+            named = int(f[len(REMOVED_NAMED):])
+        elif f == AFTER_IDENTITY:
+            after = True
+    return removed, named, after
+
+
+def with_removal(flags: list | None, removed: int, named: int, after_identity: bool = False) -> list:
+    """Flags with the removal counters increased (counts only; no text)."""
+    old_removed, old_named, old_after = removal_signal(flags)
+    out = [f for f in (flags or []) if not f.startswith((REMOVED, REMOVED_NAMED)) and f != AFTER_IDENTITY]
+    if old_removed + removed:
+        out.append(f"{REMOVED}{old_removed + removed}")
+    if old_named + named:
+        out.append(f"{REMOVED_NAMED}{old_named + named}")
+    if old_after or (after_identity and removed):
+        out.append(AFTER_IDENTITY)
+    return out
 
 
 def url_category(url: str) -> str | None:
