@@ -297,7 +297,14 @@ strongly_supported / high — 3 distinct dated events in 3 origin groups over 3 
 | `fd93a0e` | Removed text keeps sentence boundaries: the placeholder is its own sentence, and both splitters and the pronoun linker treat placeholders as hard boundaries |
 | `5abfc92` | Identity-safety signal (counts only) and its use in the resolver: downgrade, shared-profile conflict, staleness, carry-forward after redaction |
 | `98d5998` | Undated place and travel URL paths withheld at storage (host kept); known-URL anchors compared in raw and stored form |
-| final docs commit | This section and the corrections above |
+| `f0aa52b` | Documentation for this section and the corrections above |
+| `c8345a2` | Release-gate fix: a page redacted after identity keeps the **more conservative** of its earlier decision and the decision recomputed from the remaining text (regression test P1) |
+| `0a71087` | Note that withheld URL hashes and URL keys are unsalted |
+
+**Re-resolution after redaction (as implemented since `c8345a2`).** When a page was redacted after identity resolution, re-resolution keeps whichever of two decisions is more conservative: the earlier decision, made on the full text, or the decision recomputed from the remaining text, including the redaction downgrade.
+- The ranking is by effect: rejected = ambiguous < insufficient < possible < historical < strong < confirmed. A tie keeps the earlier decision.
+- A stale `strong` or `confirmed` therefore cannot survive once the evidence behind it is removed. In P1, the page falls to `insufficient`, the subject to `possible`, and its claims are withdrawn. A reviewer override can still restore the stronger status.
+- **Expired-text carry-forward is unchanged:** after the 7-day expiry nothing can be recomputed, so the earlier rule decision is kept.
 
 **Final test run (after corrective pass 2):**
 - **Engine:** 444 passed, 1 skipped (the opt-in live test), exit code 0.
@@ -311,7 +318,7 @@ strongly_supported / high — 3 distinct dated events in 3 origin groups over 3 
 | Case | Observed result | Why it is safe |
 |---|---|---|
 | **A** One page: the subject; a same-name pastry chef in a sensitive sentence; "She loves jazz." (real write path) | Subject `confirmed` (by the official page); the mixed page **`ambiguous`**; **no claims**; flags `privacy_removed:1`, `privacy_removed_named:1` | Same outcome as with the raw text. The pronoun cannot cross the placeholder, and the page cannot support identity on its own. |
-| **A2** Raw text, end-of-run redaction (place sentence), then a later identity change and re-resolution | The mixed page stays **`ambiguous`** (earlier decision carried forward); **no claims** | Re-resolution no longer re-judges a page from text it had seen in full |
+| **A2** Raw text, end-of-run redaction (place sentence), then a later identity change and re-resolution | The mixed page stays **`ambiguous`**; **no claims** (re-resolution keeps the more conservative of the earlier and recomputed decisions; here both are `ambiguous`) | Removed text can neither strengthen the page nor let a pronoun inherit the subject |
 | **B** A newer page ties the subject's GitHub profile to an affiliation described only in a sensitive sentence | Subject **`conflicting`**: "…ties the same profile (github.com/priyaraman) to an affiliation described in text removed as out of scope and is newer: possible role change" | The shared-profile conflict fires again. The explanation names no clinic, and the page's URL is fully withheld. |
 | **C** All support is from 2018; a newer page ties the name to a role described only in a sensitive sentence | Subject **`possible`** (staleness cap: "newer pages tie the name elsewhere") | The staleness cap applies again; no claims |
 | **D** The subject's only mention is in a sensitive sentence on the official page | Subject **`insufficient_evidence`**; explanation: "1 document(s) had sentences naming the subject removed as out of scope" | **Intended:** coverage loss. The subject stays unresolved instead of being resolved from evidence that cannot be kept. |
