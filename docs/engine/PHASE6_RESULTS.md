@@ -176,7 +176,7 @@ A checkpoint cannot complete while another connection holds a read snapshot. Pur
   - redaction is recorded (family and health categories, ≥ 3 sentences, checkpoint completed);
   - raw bytes contain none of the sentences;
   - the in-scope sentence on the same page still yields its association claim.
-- **Correction:** the original statement here, that out-of-scope text was in the database "briefly", was wrong. The audit showed it was written at fetch time, and that a crash left it on disk until the 7-day expiry (titles and URL slugs for 30 days). This is fixed in §11; the remaining limits are listed there.
+- **Correction:** the original statement here, that out-of-scope text was in the database "briefly", was wrong. The audit showed it was written at fetch time, and that a crash left it on disk until the 7-day expiry (titles and URL slugs for 30 days). §11 fixed this for sensitive-trait, residence and whereabouts content. §12 also withholds undated place and travel URL paths, which §11 had not covered. The remaining limits are listed in §11 and §12.
 
 ## 8. Example claims (real output, fictional subject)
 
@@ -284,8 +284,56 @@ strongly_supported / high — 3 distinct dated events in 3 origin groups over 3 
 ### Known limitations that remain
 
 1. **Lexical detection.** Out-of-scope content in words the lists lack is stored until the 7-day expiry. Support and recovery groups were added as a regression; other gaps certainly exist.
-2. **Two-tier categories.** Undated place and travel sentences are stored until end-of-run redaction, or until recovery after a crash. That is by design, because identity needs them.
-3. **Identity signal loss.** Write-boundary filtering removes sensitive sentences before identity sees them. A namesake described only in such sentences can become `insufficient` instead of `rejected`, so the shared-profile conflict check cannot fire for it. This errs towards fewer resolved subjects, but it is a reduced safeguard.
+2. **Two-tier categories.** Undated place and travel **sentences** are stored until end-of-run redaction, or until recovery after a crash, because identity needs them. Their **URL paths** are withheld at storage since corrective pass 2 (§12).
+3. **Identity signal loss — corrected in §12.** The statement previously here, that filtering "errs towards fewer resolved subjects", **was wrong**. The final review showed the opposite: removing a sentence about a same-name person made a mixed page `strong`, attributed a following "She loves jazz." to the subject, and disabled the shared-profile conflict and the staleness cap, so subjects resolved when they should have been `conflicting` or `possible`. Fixed in §12.
 4. **Hashes.** `text_sha256` and `simhash` are computed on the original text, and `claim_evidence.evidence_sha256` on short sentences. A hash can confirm a guessed text.
 5. **Outside the engine:** no scheduler (nothing runs while idle); backups, sync, snapshots and SSD remnants are not controlled; logical deletion and SQLite byte removal are not forensic erasure.
 6. **In memory:** page content exists in process memory during a run.
+
+## 12. Corrective pass 2 (after the final review)
+
+| Commit | Change |
+|---|---|
+| `fd93a0e` | Removed text keeps sentence boundaries: the placeholder is its own sentence, and both splitters and the pronoun linker treat placeholders as hard boundaries |
+| `5abfc92` | Identity-safety signal (counts only) and its use in the resolver: downgrade, shared-profile conflict, staleness, carry-forward after redaction |
+| `98d5998` | Undated place and travel URL paths withheld at storage (host kept); known-URL anchors compared in raw and stored form |
+| final docs commit | This section and the corrections above |
+
+**Final test run (after corrective pass 2):**
+- **Engine:** 444 passed, 1 skipped (the opt-in live test), exit code 0.
+- **No-AI-library checks:** 4 passed.
+- **Prototype:** 68 passed, unchanged against `c2cf132`.
+- **Held-out fixture:** sha256 `4764ee4f…a787`, unchanged.
+- **Databases:** `data/engine.db` (`a23d7684…`, schema v2, integrity ok) and `data/personalizer.db` (`f888f58e…`) unchanged.
+
+### Review cases (verified by `tests_engine/test_identity_safety.py`)
+
+| Case | Observed result | Why it is safe |
+|---|---|---|
+| **A** One page: the subject; a same-name pastry chef in a sensitive sentence; "She loves jazz." (real write path) | Subject `confirmed` (by the official page); the mixed page **`ambiguous`**; **no claims**; flags `privacy_removed:1`, `privacy_removed_named:1` | Same outcome as with the raw text. The pronoun cannot cross the placeholder, and the page cannot support identity on its own. |
+| **A2** Raw text, end-of-run redaction (place sentence), then a later identity change and re-resolution | The mixed page stays **`ambiguous`** (earlier decision carried forward); **no claims** | Re-resolution no longer re-judges a page from text it had seen in full |
+| **B** A newer page ties the subject's GitHub profile to an affiliation described only in a sensitive sentence | Subject **`conflicting`**: "…ties the same profile (github.com/priyaraman) to an affiliation described in text removed as out of scope and is newer: possible role change" | The shared-profile conflict fires again. The explanation names no clinic, and the page's URL is fully withheld. |
+| **C** All support is from 2018; a newer page ties the name to a role described only in a sensitive sentence | Subject **`possible`** (staleness cap: "newer pages tie the name elsewhere") | The staleness cap applies again; no claims |
+| **D** The subject's only mention is in a sensitive sentence on the official page | Subject **`insufficient_evidence`**; explanation: "1 document(s) had sentences naming the subject removed as out of scope" | **Intended:** coverage loss. The subject stays unresolved instead of being resolved from evidence that cannot be kept. |
+
+Also verified:
+- **Scoping:** the signal is per document and per run; a second run in the same database is unaffected. No removed word ("church", "choir") appears in any document, identity, trace or claim row.
+- **Reviewer decisions:** a reviewer can still mark such a page `strong`, which gates its in-scope claims. Marking it `ambiguous` again supersedes exactly those claims (`identity_changed`).
+- **Sentence boundaries:** for every placeholder length, offsets are unchanged; legacy placeholders are hard boundaries too.
+- **URLs:** a research run fetches a travel-path page and a page reached through a redirect to a place path. Its known-URL anchor still works. No path appears in the main, WAL or SHM files across leads, search results, URLs, attempts, documents, traces, claim evidence and run input. `retrieve` and `search` behave the same.
+- **Changed existing test:** `test_full_research_run_redacts_pages_and_snippets` now expects the page whose removed sentences named the subject to be `ambiguous`, so its association is no longer a claim. That is the new, more conservative behaviour.
+
+### Assumptions (not verified)
+
+- The subject's full-name pattern (first, optional middle, last; or "Last, First") catches the mentions that matter. Surname-only or nickname mentions in removed text are not counted.
+- A count of removed sentences, without the sentence, is enough for the three resolver rules above. It cannot tell *what* the removed text said, so it is deliberately conservative.
+
+### Remaining risks
+
+1. **Coverage loss (by design).** A subject whose decisive evidence is in removed text stays unresolved (case D). A page with any removed sentence naming the subject never supports identity unless a reviewer decides otherwise.
+2. **Search and retrieve runs** record only that text was removed, not whether it named a subject; they do not resolve identity.
+3. **URL paths:**
+   - the host is kept, and a host name can itself be a place (`bengaluru.example`);
+   - path detection is lexical;
+   - dated past-travel paths are stored by design.
+4. **Unchanged from §11:** lexical detection, two-tier categories for sentences, hashes of original text, no scheduler, nothing outside the engine (backups, snapshots, SSD), process memory.

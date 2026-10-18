@@ -128,6 +128,9 @@ Evidence for platform claims is in [PLATFORMS.md](PLATFORMS.md); every probe the
 | D11.11 | **Interrupted runs** still `running` after `max(1800 s, wall budget + 60 s)` are marked `failed` / `interrupted` at the next start and redacted. Finished runs are never modified. | Implemented, awaiting review |
 | D11.12 | **Retention reliability:** titles expire with text (D4.4); the WAL checkpoint is retried on every purge; maintenance outcomes are recorded on the run. No scheduler: nothing is purged while idle. | Implemented, awaiting review |
 | D11.13 | **Claim lifecycle:** only claims affected by an identity change are superseded (`identity_changed`); unchanged claims keep their row; first extraction `initial`. | Implemented, awaiting review |
+| D11.14 | **Removed text is a hard sentence boundary.** The placeholder is a sentence of its own; splitters and the pronoun linker never cross it. | Implemented, awaiting review |
+| D11.15 | **Identity-safety signal:** documents record removed-sentence counts and how many named the subject (no text). Such pages cannot support identity on their own, and they feed the shared-profile conflict and the staleness cap. Pages redacted after identity keep their earlier decision. | Implemented, awaiting review |
+| D11.16 | **Undated place/travel URL paths** are fetched but stored as host plus hash; dated past travel paths are kept. | Implemented, awaiting review |
 
 ## Open items needing your input
 

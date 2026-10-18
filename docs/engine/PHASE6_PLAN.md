@@ -288,12 +288,26 @@ Not storing a claim is not enough: page text, titles, snippets, URLs and identit
 
 1. **Write boundary** (`engine/privacy.py`). It runs inside the functions that persist content: `repo.add_document`, `add_lead`, `add_url`, `add_attempt`, `add_robots_check`, `trace`, `create_run` (run input), the search-results insert, planner decisions, identity `save` and the claims store. Every entry point (`research`, `search`, `retrieve`) is therefore covered, and an interrupted run cannot leave **storage-level** content behind.
    - **Storage-level categories:** sensitive traits (D4.1), residence, and current or upcoming whereabouts. Matching sentences in page text, titles and snippets are replaced by a same-length placeholder **before writing**.
-   - **URLs** whose path or query names such a topic are refused by URL policy (`URL_OUT_OF_SCOPE`, re-checked on every redirect hop) and stored only as `withheld:out_of_scope:<hash>`.
+   - **URLs** whose path or query names such a topic are refused by URL policy (`URL_OUT_OF_SCOPE`, re-checked on every redirect hop) and stored only as `withheld:out_of_scope:<hash>`. *(Corrective pass 2)* URLs whose path names an **undated place or travel** are still fetched, but every stored form keeps only scheme and host: `https://host/withheld-path:<hash>`. Dated past travel paths are kept (D4.2).
    - **Identity records:** out-of-scope organisation or occupation labels (for example a support group named as a namesake's affiliation) are stored as `out_of_scope:<hash>`. Reasons or explanations carrying such content are withheld.
 2. **End-of-run redaction** (defence in depth). This is the full claim-level classifier, with the subject's location, over every stored text of the run. It additionally removes **undated travel and undated place** sentences. Those are claim rules (D4.2) that are deliberately *not* applied at the write boundary, because identity resolution needs them (for example "a pastry chef in Chennai" marks a namesake).
 3. **Interrupted-run recovery** (`engine/maintenance.py`). At the next start, runs still marked `running` after `max(retention.interrupted_after_seconds = 1800, wall budget + 60 s)` are marked `failed` (stop reason `interrupted`, gate `RUN_INTERRUPTED`) and get the end-of-run redaction, followed by the purge checkpoint. Younger runs may be live in another process and are left alone. Finished runs are never touched.
 
 `text_sha256` and `simhash` describe the original fetched text, before filtering.
+
+**Sentence boundaries (corrective pass 2).** Removed text must never join the sentences around it. The placeholder is a sentence of its own (`[Removed .]`, same length), and both the claim and identity splitters cut on any placeholder, including the earlier `[removed: out of scope]` form. Claim extraction treats a placeholder as a hard boundary, so a pronoun after it cannot inherit an earlier subject. Before this, removed text merged its neighbours, and "She loves jazz." after a removed sentence about a same-name person was attributed to the subject.
+
+**Identity-safety signal (corrective pass 2).** Removing text also removes identity evidence. Each document therefore records, **as counts only**:
+- `privacy_removed:N`: sentences removed;
+- `privacy_removed_named:M`: removed sentences that contained the run subject's full name;
+- `privacy_redacted_after_identity`: the removal happened after identity had seen the full text.
+
+No sentence, trait or place is kept. The resolver uses the signal three ways:
+- a page whose removed text named the subject cannot be `confirmed`, `strong` or `historical` (it becomes `ambiguous`);
+- such pages count like namesake pages in the shared-profile conflict and the staleness cap;
+- a page redacted after identity keeps its earlier rule decision on re-resolution.
+
+The subject name is known only to research runs. `search` and `retrieve` runs record the removed count, but cannot record the named count.
 
 **Limitations:**
 - The detection is **lexical** and incomplete. Content phrased in words the lists do not contain is stored and only removed at the 7-day expiry.

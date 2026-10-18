@@ -97,5 +97,8 @@ ENGINE_LIVE=1 pytest tests_engine/test_live.py  # live smoke test (free, keyless
   `checkpoint_complete`). Nothing is purged while the engine is idle: no scheduler exists.
 
 Privacy: sensitive traits, residence and current or upcoming whereabouts are filtered when content is written
-(all entry points), sensitive URL paths are never requested and stored only as a hash, and undated places are
-removed at the end of a run. Detection is lexical and incomplete; see PHASE6_RESULTS.md §11.
+(all entry points), sensitive URL paths are never requested and stored only as a hash, undated place/travel URL
+paths are stored as host plus hash, and undated place/travel sentences are removed at the end of a run (or at
+recovery after a crash). Removed text is replaced by a placeholder that is a sentence of its own, so it never joins
+its neighbours. Documents record only how many sentences were removed and how many named the subject; identity
+resolution uses that to stay conservative. Detection is lexical and incomplete; see PHASE6_RESULTS.md §11-§12.
