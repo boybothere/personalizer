@@ -336,4 +336,5 @@ Also verified:
    - the host is kept, and a host name can itself be a place (`bengaluru.example`);
    - path detection is lexical;
    - dated past-travel paths are stored by design.
+   - withheld URL hashes (`withheld:out_of_scope:<hash>`, `/withheld-path:<hash>`) and URL keys (`urls.url_key`, `search_results.url_key`) are **unsalted** SHA-256 prefixes, so someone with database access can confirm a guessed URL by hashing it. Hashing behaviour is unchanged.
 4. **Unchanged from §11:** lexical detection, two-tier categories for sentences, hashes of original text, no scheduler, nothing outside the engine (backups, snapshots, SSD), process memory.

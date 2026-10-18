@@ -313,6 +313,7 @@ The subject name is known only to research runs. `search` and `retrieve` runs re
 - The detection is **lexical** and incomplete. Content phrased in words the lists do not contain is stored and only removed at the 7-day expiry.
 - Undated place and travel sentences are stored until end-of-run redaction, or until recovery if the run is interrupted.
 - Page content is in process memory during a run.
+- Withheld URL hashes (`withheld:out_of_scope:<hash>`, `/withheld-path:<hash>`) and URL keys (`urls.url_key`, `search_results.url_key`) are **unsalted** SHA-256 prefixes, so someone with database access can confirm a guessed URL by hashing it. Hashing behaviour is unchanged.
 
 ## 3. Schema (migration 0006 `claims`, reversible; tested on a copy only)
 
