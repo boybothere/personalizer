@@ -12,7 +12,7 @@ import sqlite3
 from datetime import date
 
 from ..identity.evidence import PLACES
-from .text import sentence_spans
+from .text import placeholder, sentence_spans
 
 _I = re.I
 SENSITIVE: dict[str, list[re.Pattern]] = {
@@ -128,14 +128,9 @@ def classify(sentence: str, today: date, location: str | None = None, storage_on
     return None
 
 
-PLACEHOLDER = "[removed: out of scope]"
-
-
 def _blank(segment: str) -> str:
-    """Same-length placeholder, so stored offsets into the text stay valid."""
-    if len(segment) >= len(PLACEHOLDER):
-        return PLACEHOLDER + " " * (len(segment) - len(PLACEHOLDER))
-    return "·" * len(segment)
+    """Same-length placeholder (offsets stay valid) that is a sentence of its own (boundaries stay intact)."""
+    return placeholder(len(segment))
 
 
 def redact_text(text: str, today: date, location: str | None = None,

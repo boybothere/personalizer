@@ -11,7 +11,7 @@ from datetime import date
 
 from ..identity.evidence import Subject
 from . import scope
-from .text import MAX_EVIDENCE_CHARS, sentence_spans
+from .text import MAX_EVIDENCE_CHARS, is_placeholder, sentence_spans
 
 RULES = "claims-rules-1"
 _ADV = r"(?:\s+(?:really|also|still|truly|absolutely|genuinely|just|now|often|regularly|recently|once|always|has|have|had))*"
@@ -194,6 +194,9 @@ def extract_doc(doc: DocInput, subject: Subject, today: date) -> tuple[list[Cand
     prev_about = False
     for a, b in sentence_spans(doc.text):
         s = doc.text[a:b]
+        if is_placeholder(s):
+            prev_about = False  # removed text is a hard boundary: no pronoun may inherit across it
+            continue
         has_full = bool(name.search(s))
         seen_full = seen_full or has_full
         about = has_full or (seen_full and bool(last.search(s))) or \

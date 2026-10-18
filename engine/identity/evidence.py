@@ -10,6 +10,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
+from ..claims.text import pieces
 from ..identity_signal import GENERIC_ROLE_WORDS
 from .orgmatch import OrgMatcher, chunks
 
@@ -103,9 +104,16 @@ class DocEvidence:
 
 
 def _sentences(text: str) -> list[str]:
+    """Placeholders for removed text stay as sentences of their own: they never merge their neighbours and they
+    stop a following pronoun sentence from being attached to an earlier mention."""
     out: list[str] = []
     for line in text.splitlines():
-        out += [s.strip() for s in re.split(r"(?<=[.!?])\s+(?=[\"'(\[]?[A-Z0-9])", line) if s.strip()]
+        for a, b, hard in pieces(line):
+            part = line[a:b]
+            if hard:
+                out.append(part.strip())
+                continue
+            out += [s.strip() for s in re.split(r"(?<=[.!?])\s+(?=[\"'(\[]?[A-Z0-9])", part) if s.strip()]
     return out
 
 
